@@ -26,6 +26,8 @@ pip install -r requirements.txt
 uvicorn backend.api:app --host 0.0.0.0 --port 8000
 ```
 
+> Optional: if you later add embedding/ranking features, install heavier ML libraries (e.g. `sentence-transformers`) manually. They are excluded from `requirements.txt` so Railway’s free tier stays within build limits.
+
 Test locally:
 
 ```bash
