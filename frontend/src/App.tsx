@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { fetchPlan } from "./lib/api";
+import Dashboard from "./Dashboard";
 
 type Vibe =
   | "chill"
@@ -58,6 +59,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PlanResponse | null>(null);
+  const [tab, setTab] = useState<"planner" | "dashboard">("planner");
 
   const vibePalette: Record<Vibe, string> = useMemo(
     () => ({
@@ -113,10 +115,27 @@ export default function App() {
           The agentic social activity network. You bring the vibe. Your friends bring the time. AI
           orchestrates the plan.
         </p>
+        <nav className="tabs">
+          <button
+            className={`tab ${tab === "planner" ? "tab--active" : ""}`}
+            onClick={() => setTab("planner")}
+            type="button"
+          >
+            Planner
+          </button>
+          <button
+            className={`tab ${tab === "dashboard" ? "tab--active" : ""}`}
+            onClick={() => setTab("dashboard")}
+            type="button"
+          >
+            Dashboard
+          </button>
+        </nav>
       </header>
 
       <main>
-        <section className="planner-panel">
+        {tab === "planner" ? (
+          <section className="planner-panel">
           <form onSubmit={onSubmit}>
             <label>
               Mood Input
@@ -199,6 +218,11 @@ export default function App() {
             </ul>
           </aside>
         </section>
+        ) : (
+          <section className="planner-panel">
+            <Dashboard />
+          </section>
+        )}
 
         <section className="results-panel">
           {error && <div className="error">{error}</div>}

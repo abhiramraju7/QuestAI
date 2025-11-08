@@ -126,6 +126,17 @@ If you prefer Google’s Agent Developer Kit (ADK) or other frameworks (e.g., La
 - `tool_calendar_probe(user_ids, time_window)` — stub for group availability checks.
 - `tool_reserve_table(candidate)` — stub for reservation/booking workflows.
 
+---
+
+## Social Dashboard
+
+- Backend endpoint: `GET /api/v1/dashboard?location=Cambridge,MA&time_window=today%205-9pm&user_ids=u1,u2,u3&vibe=music`
+  - Returns top picks (via Writer over discovery), trending events (Eventbrite), and vibe stats.
+- Frontend:
+  - `frontend/src/Dashboard.tsx` renders dashboard cards, events, and vibe chips
+  - `frontend/src/App.tsx` adds a Planner/Dashboard tab switch
+  - `frontend/src/lib/api.ts` includes `fetchDashboard()` helper
+
 ## Hackathon Pitch Snapshots
 
 - **Concept** — Vivi mediates “What should we do?” decisions better than any group chat.
