@@ -65,3 +65,20 @@ class FeedbackRequest(BaseModel):
     item_title: str
     emoji: str
     strength: Optional[float] = None
+
+class VisitRequest(BaseModel):
+    user_ids: List[str]
+    title: str
+    lat: float
+    lng: float
+
+class VisitItem(BaseModel):
+    title: str
+    lat: float
+    lng: float
+    user_ids: List[str]
+
+class ProgressResponse(BaseModel):
+    percent_explored: float
+    visited_cells: int
+    total_cells: int

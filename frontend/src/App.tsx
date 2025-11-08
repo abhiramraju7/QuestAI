@@ -6,6 +6,8 @@ import ConstellationMotion, {
   CMUser,
 } from "./components/ConstellationMotion";
 import { sendFeedback } from "./lib/api";
+import MapUI from "./components/MapUI";
+import { postVisit, fetchVisited, fetchProgress } from "./lib/api";
 import type { CSSProperties } from "react";
 import { fetchPlan } from "./lib/api";
 
@@ -148,7 +150,7 @@ export default function App() {
       const data = await fetchPlan({
         query_text: "Plan something the whole group will love.",
         user_ids: PEOPLE.map((p) => p.id),
-        location_hint: "Cambridge, MA",
+        location_hint: "Atlanta, GA",
         time_window: "Tonight 5-9pm",
       });
       setGroupResult(data);
@@ -321,6 +323,31 @@ export default function App() {
     console.log("Reaction", { title: card.title, emoji });
   }
 
+  const mapPlaces = useMemo(
+    () =>
+      nodes.map((c) => ({
+        title: c.title,
+        lat: c.lat ?? 0,
+        lng: c.lng ?? 0,
+        vibe: c.vibe,
+        distance_km: c.distance_km,
+        score: c.group_score,
+      })),
+    [nodes]
+  );
+
+  const [completed, setCompleted] = useState<{ title: string; lat: number; lng: number }[]>([]);
+  const [progress, setProgress] = useState<{ percent_explored: number } | null>(null);
+
+  async function markCompleted(p: { title: string; lat: number; lng: number }) {
+    setCompleted((prev) => [...prev, p]);
+    try {
+      await postVisit({ user_ids: PEOPLE.map((u) => u.id), title: p.title, lat: p.lat, lng: p.lng });
+      const pr = await fetchProgress();
+      setProgress(pr);
+    } catch {}
+  }
+
   return (
     <div className="app-shell">
       <header>
@@ -336,6 +363,12 @@ export default function App() {
               {loading ? "Computing alignment..." : "Generate group plan"}
             </button>
           </div>
+          <MapUI places={mapPlaces} onComplete={markCompleted} completed={completed} />
+          {progress && (
+            <div className="map-hud">
+              Area explored: {Math.round(progress.percent_explored * 100)}%
+            </div>
+          )}
           <ConstellationMotion
             users={constellationUsers}
             activities={constellationActivities}
