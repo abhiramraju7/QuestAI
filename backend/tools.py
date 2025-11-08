@@ -284,6 +284,19 @@ def _fetch_eventbrite_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     search_terms.extend(query.get("likes") or [])
     search_terms.extend(query.get("tags") or [])
 
+    seen = set()
+    deduped_terms: List[str] = []
+    for term in search_terms:
+        normalized = term.strip()
+        if not normalized:
+            continue
+        lowered = normalized.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        deduped_terms.append(normalized)
+    search_terms = deduped_terms[:6]  # keep keyword string short for Eventbrite
+
     params: Dict[str, Any] = {
         "expand": "venue,category,subcategory,format",
         "q": " ".join(t for t in search_terms if t).strip() or "activities",
