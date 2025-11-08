@@ -32,3 +32,22 @@ export async function fetchPlan(payload: GroupRequest) {
   return res.json();
 }
 
+export async function sendFeedback(payload: {
+  user_id: string;
+  item_title: string;
+  emoji: string;
+  strength?: number;
+}) {
+  const base = API_BASE || `${window.location.origin}/.netlify/functions`;
+  const url = API_BASE ? `${base}/api/v1/feedback` : `${base}/feedback`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return res.json();
+}
+

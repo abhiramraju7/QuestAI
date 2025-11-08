@@ -1,10 +1,11 @@
 /// <reference path="./types/react-shim.d.ts" />
 import React from "react";
 import { useMemo, useState } from "react";
-import Constellation, {
-  ConstellationActivity,
-  ConstellationUser,
-} from "./components/Constellation";
+import ConstellationMotion, {
+  CMActivity,
+  CMUser,
+} from "./components/ConstellationMotion";
+import { sendFeedback } from "./lib/api";
 import type { CSSProperties } from "react";
 import { fetchPlan } from "./lib/api";
 
@@ -266,7 +267,7 @@ export default function App() {
     [groupResult, SAMPLE_NODES]
   );
 
-  const constellationUsers: ConstellationUser[] = useMemo(
+  const constellationUsers: CMUser[] = useMemo(
     () =>
       PEOPLE.map((p) => ({
         id: p.id,
@@ -277,13 +278,15 @@ export default function App() {
     []
   );
 
-  const constellationActivities: ConstellationActivity[] = useMemo(
+  const constellationActivities: CMActivity[] = useMemo(
     () =>
-      nodes.map((c, i) => ({
+      nodes.map((c, i): CMActivity => ({
         id: `${i}-${c.title}`,
         title: c.title,
         vibe: c.vibe,
         reasons: c.reasons,
+        score: c.group_score,
+        distance_km: c.distance_km ?? undefined,
       })),
     [nodes]
   );
@@ -333,13 +336,22 @@ export default function App() {
               {loading ? "Computing alignment..." : "Generate group plan"}
             </button>
           </div>
-          <Constellation
+          <ConstellationMotion
             users={constellationUsers}
             activities={constellationActivities}
             onSelect={(a) => {
               // find matching card to show detail
               const card = nodes.find((c) => c.title === a.title) || nodes[0];
               onNodeClick(card);
+            }}
+            onReact={(a, emoji) => {
+              // send mood to backend
+              sendFeedback({
+                user_id: selectedId,
+                item_title: a.title,
+                emoji,
+                strength: a.score,
+              }).catch(() => {});
             }}
             height={560}
           />

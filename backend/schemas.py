@@ -59,3 +59,9 @@ class PlanResponse(BaseModel):
     energy_profile: Optional[str] = None
     candidates: List[PlanCard]
     action_log: List[str]
+
+class FeedbackRequest(BaseModel):
+    user_id: str
+    item_title: str
+    emoji: str
+    strength: Optional[float] = None

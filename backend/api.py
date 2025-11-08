@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .orchestrator import plan
-from .schemas import GroupRequest, PlanResponse
+from .schemas import GroupRequest, PlanResponse, FeedbackRequest
 from typing import Optional, List, Dict, Any
 from .tools import _fetch_eventbrite_events
 
@@ -36,6 +36,14 @@ def create_plan(req: GroupRequest) -> PlanResponse:
     """
     return plan(req)
 
+@app.post("/api/v1/feedback")
+def feedback(req: FeedbackRequest) -> dict:
+    """
+    Lightweight mood reaction sink. For demo, we just log and return ok.
+    """
+    # In production, persist to taste graph
+    print("FEEDBACK:", req.model_dump())
+    return {"ok": True}
 @app.get("/api/v1/events")
 def list_events(
     location: Optional[str] = None,
