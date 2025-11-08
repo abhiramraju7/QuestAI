@@ -45,7 +45,7 @@ def llm_json(prompt: str, system: str) -> Dict[str, Any]:
     if system == SYSTEM_LISTENER:
         return {
             "primary_vibes": ["outdoors", "music"],
-            "budget_hint": "<20",
+            "budget_hint": "<30",
             "indoor_outdoor": "outdoor",
             "energy_level": "medium",
             "time_hint": "today after 5pm"

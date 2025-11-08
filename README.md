@@ -1,6 +1,6 @@
 # Vivi — Agentic Activity Network
 
-“You bring the mood. Your friends bring the vibe. AI orchestrates the plan.”
+“You bring the mood, and your friends bring the vibe. AI orchestrates the plan.”
 
 Vivi is a full-stack reimagining of the Yumi social-agentic platform, pivoting from food discovery to activity discovery. The system coordinates group moods, taste graphs, and live event data to suggest the perfect shared experience. The repo now targets a Netlify-hosted web app paired with a FastAPI backend you can deploy on your preferred free-tier provider (Railway, Fly.io, Cloud Run, etc.).
 
@@ -32,7 +32,8 @@ Environment variables (backend):
 
 - `GEMINI_API_KEY` *(optional)* — enables Google Gemini for the listener/writer agents. Without it, the service falls back to deterministic mocks.
 - `GEMINI_MODEL` *(optional, default `gemini-1.5-flash`)* — override the Gemini model.
-- `GOOGLE_PLACES_API_KEY` *(optional)* — enables live place discovery via Google Places; otherwise cached Cambridge data is used.
+- `GOOGLE_PLACES_API_KEY` *(optional)* — enables live place discovery and geocoding via Google Places.
+- `EVENTBRITE_API_KEY` *(optional)* — enables live event discovery via the Eventbrite API.
 
 Test locally:
 

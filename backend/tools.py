@@ -2,10 +2,11 @@
 # In dev, they can return mock data; Friend 2 will later wire real APIs.
 
 import os
-from typing import List, Dict, Any, Optional
+import re
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-
 from backend.schemas import UserTaste
 
 # === Data-access contracts Friend 2 will implement for real ===
@@ -42,13 +43,25 @@ def tool_get_user_taste(user_id: str) -> UserTaste:
 def tool_merge_tastes(tastes: List[UserTaste]) -> Dict[str, Any]:
     # naive weighted union for hackathon speed
     from collections import Counter
+
     vibes = Counter(v for t in tastes for v in t.vibes).most_common()
     merged_vibe = (vibes[0][0] if vibes else "chill")
-    budget = min([t.budget_max for t in tastes if t.budget_max is not None] or [None]) or None
-    distance = min([t.distance_km_max for t in tastes if t.distance_km_max is not None] or [None]) or None
+
+    budgets = [t.budget_max for t in tastes if t.budget_max is not None]
+    budget = min(budgets) if budgets else 30  # default to <$30 if unknown
+
+    distance_values = [t.distance_km_max for t in tastes if t.distance_km_max is not None]
+    distance = min(distance_values) if distance_values else 5
+
     likes = list({l for t in tastes for l in t.likes})
     tags = list({tg for t in tastes for tg in t.tags})
-    return {"merged_vibe": merged_vibe, "budget_cap": budget, "distance_cap": distance, "likes": likes, "tags": tags}
+    return {
+        "merged_vibe": merged_vibe,
+        "budget_cap": budget,
+        "distance_cap": distance,
+        "likes": likes,
+        "tags": tags,
+    }
 
 def _google_price_to_band(price_level: Optional[int]) -> Optional[str]:
     mapping = {
@@ -61,45 +74,169 @@ def _google_price_to_band(price_level: Optional[int]) -> Optional[str]:
     return mapping.get(price_level) if price_level is not None else None
 
 
+def _budget_cap_to_price_level(budget_cap: Optional[float]) -> Optional[int]:
+    if budget_cap is None:
+        return None
+    if budget_cap <= 0:
+        return 0
+    if budget_cap <= 15:
+        return 1
+    if budget_cap <= 30:
+        return 2
+    if budget_cap <= 60:
+        return 3
+    return 4
+
+
+def _price_band_to_level(price: Optional[str]) -> Optional[int]:
+    if not price:
+        return None
+    normalized = price.lower()
+    if normalized == "free":
+        return 0
+    return normalized.count("$")
+
+
+def _geocode_location(location: Optional[str]) -> Optional[Tuple[float, float]]:
+    if not location:
+        return None
+
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        resp = httpx.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"address": location, "key": api_key},
+            timeout=10.0,
+        )
+        data = resp.json()
+        if data.get("results"):
+            geometry = data["results"][0]["geometry"]["location"]
+            return geometry["lat"], geometry["lng"]
+    except Exception:
+        return None
+
+    return None
+
+
+def _parse_time_window(time_window: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    if not time_window:
+        return None, None
+
+    window = time_window.lower()
+    now = datetime.now()
+
+    base = now
+    if "tomorrow" in window:
+        base = now + timedelta(days=1)
+    elif "next" in window and "day" in window:
+        base = now + timedelta(days=1)
+
+    times = re.findall(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)", window)
+    start_iso: Optional[str] = None
+    end_iso: Optional[str] = None
+
+    def to_datetime(match: Tuple[str, Optional[str], str]) -> datetime:
+        hour = int(match[0])
+        minute = int(match[1]) if match[1] else 0
+        meridian = match[2]
+        if meridian == "pm" and hour != 12:
+            hour += 12
+        if meridian == "am" and hour == 12:
+            hour = 0
+        dt = base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if dt < now:
+            dt += timedelta(days=1)
+        return dt
+
+    if times:
+        start_dt = to_datetime(times[0])
+        start_iso = start_dt.isoformat()
+        if len(times) > 1:
+            end_dt = to_datetime(times[1])
+            if end_dt <= start_dt:
+                end_dt += timedelta(hours=2)
+            end_iso = end_dt.isoformat()
+        elif "before" in window:
+            end_iso = start_dt.isoformat()
+            start_iso = None
+    else:
+        if "morning" in window:
+            start_iso = base.replace(hour=8, minute=0, second=0, microsecond=0).isoformat()
+            end_iso = base.replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+        elif "afternoon" in window:
+            start_iso = base.replace(hour=12, minute=0, second=0, microsecond=0).isoformat()
+            end_iso = base.replace(hour=17, minute=0, second=0, microsecond=0).isoformat()
+        elif "evening" in window or "tonight" in window:
+            start_iso = base.replace(hour=17, minute=0, second=0, microsecond=0).isoformat()
+            end_iso = base.replace(hour=22, minute=0, second=0, microsecond=0).isoformat()
+
+    return start_iso, end_iso
+
+
 def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
     if not api_key:
         return []
 
-    search_terms: List[str] = []
+    coords = _geocode_location(query.get("location"))
+    radius_km = query.get("distance_cap") or 5
+    radius_m = min(max(int(radius_km * 1000), 1000), 50000)
+
+    keyword_parts: List[str] = []
     if query.get("vibe"):
-        search_terms.append(str(query["vibe"]))
-    search_terms.extend(query.get("likes") or [])
-    if not search_terms:
-        search_terms.append("interesting activities")
+        keyword_parts.append(str(query["vibe"]))
+    keyword_parts.extend(query.get("likes") or [])
+    keyword = " ".join(keyword_parts) or "activities"
 
-    location = query.get("location") or "nearby"
-    composed_query = f"{' '.join(search_terms)} in {location}"
-
-    params = {
-        "query": composed_query,
-        "key": api_key,
-    }
+    price_level_cap = _budget_cap_to_price_level(query.get("budget_cap"))
 
     results: List[Dict[str, Any]] = []
     try:
         with httpx.Client(timeout=10.0) as client:
-            resp = client.get(
-                "https://maps.googleapis.com/maps/api/place/textsearch/json",
-                params=params,
-            )
+            if coords:
+                params = {
+                    "location": f"{coords[0]},{coords[1]}",
+                    "radius": radius_m,
+                    "keyword": keyword,
+                    "key": api_key,
+                }
+                if query.get("time_window"):
+                    params["opennow"] = "true"
+                resp = client.get(
+                    "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+                    params=params,
+                )
+            else:
+                resp = client.get(
+                    "https://maps.googleapis.com/maps/api/place/textsearch/json",
+                    params={
+                        "query": f"{keyword} {query.get('location') or ''}".strip(),
+                        "radius": radius_m,
+                        "key": api_key,
+                    },
+                )
             data = resp.json()
     except Exception:
         return []
 
-    for place in data.get("results", [])[:10]:
+    for place in data.get("results", [])[:20]:
         geometry = place.get("geometry", {}).get("location", {})
+        price_band = _google_price_to_band(place.get("price_level")) or "unknown"
+
+        if price_level_cap is not None:
+            level = _price_band_to_level(price_band)
+            if level is not None and level > price_level_cap:
+                continue
+
         results.append(
             {
                 "title": place.get("name"),
                 "vibe": query.get("vibe", "social"),
-                "price": _google_price_to_band(place.get("price_level")) or "unknown",
-                "address": place.get("formatted_address"),
+                "price": price_band,
+                "address": place.get("vicinity") or place.get("formatted_address"),
                 "lat": geometry.get("lat"),
                 "lng": geometry.get("lng"),
                 "distance_km": None,
@@ -112,6 +249,69 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     return results
 
 
+def _fetch_eventbrite_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    token = os.getenv("EVENTBRITE_API_KEY")
+    if not token:
+        return []
+
+    coords = _geocode_location(query.get("location"))
+    start_iso, end_iso = _parse_time_window(query.get("time_window"))
+
+    params: Dict[str, Any] = {
+        "token": token,
+        "expand": "venue,category,subcategory",
+        "q": query.get("vibe") or "activities",
+        "sort_by": "date",
+        "page_size": 20,
+    }
+
+    if coords:
+        params["location.latitude"] = coords[0]
+        params["location.longitude"] = coords[1]
+        radius_km = query.get("distance_cap") or 10
+        params["location.within"] = f"{max(1, min(int(radius_km), 50))}km"
+
+    budget_cap = query.get("budget_cap")
+    if budget_cap is not None and budget_cap <= 0:
+        params["price"] = "free"
+
+    if start_iso:
+        params["start_date.range_start"] = start_iso
+    if end_iso:
+        params["start_date.range_end"] = end_iso
+
+    try:
+        resp = httpx.get(
+            "https://www.eventbriteapi.com/v3/events/search/",
+            params=params,
+            timeout=10.0,
+        )
+        data = resp.json()
+    except Exception:
+        return []
+
+    events: List[Dict[str, Any]] = []
+    for event in data.get("events", []):
+        venue = event.get("venue") or {}
+        category = event.get("category", {})
+        is_free = event.get("is_free", False)
+        events.append(
+            {
+                "title": event.get("name", {}).get("text"),
+                "vibe": query.get("vibe", "social"),
+                "price": "free" if is_free else "$$",
+                "address": venue.get("address", {}).get("localized_address_display"),
+                "lat": venue.get("latitude"),
+                "lng": venue.get("longitude"),
+                "distance_km": None,
+                "booking_url": event.get("url"),
+                "source": "eventbrite",
+                "tags": [category.get("short_name")] if category else [],
+            }
+        )
+    return events
+
+
 def tool_find_activities(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Input keys (example): {
@@ -121,8 +321,11 @@ def tool_find_activities(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     Return raw candidates; Writer will turn into PlanCard.
     """
     google_results = _fetch_google_places(query)
-    if google_results:
-        return google_results
+    event_results = _fetch_eventbrite_events(query)
+
+    combined = google_results + event_results
+    if combined:
+        return combined
 
     # Fallback cached data for demo mode.
     return [
