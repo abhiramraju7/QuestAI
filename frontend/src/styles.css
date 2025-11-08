@@ -122,6 +122,20 @@ fieldset.friends {
   border: 1px solid transparent;
 }
 
+.friend-overrides {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.friend-overrides h3 {
+  margin: 0;
+  color: #e2e8f0;
+}
+
 .chip small {
   font-size: 0.7rem;
   color: #a0aec0;
@@ -403,5 +417,210 @@ footer {
   header {
     text-align: left;
   }
+}
+
+.events-panel {
+  display: grid;
+  gap: 1.25rem;
+  background: rgba(15, 25, 35, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.events-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.events-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.events-header p {
+  margin: 0.25rem 0 0;
+  color: #cbd5f5;
+  font-size: 0.9rem;
+}
+
+.event-form {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+.event-form label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.event-form select {
+  background: rgba(15, 25, 35, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  color: inherit;
+  font: inherit;
+}
+
+.secondary {
+  background: rgba(99, 179, 237, 0.18);
+  border: 1px solid rgba(99, 179, 237, 0.6);
+  color: #f7fafc;
+  padding: 0.8rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.2s ease;
+}
+
+.secondary:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondary:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 179, 237, 0.85);
+}
+
+.map-wrapper {
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  min-height: 280px;
+  background: rgba(9, 12, 18, 0.8);
+}
+
+.map-container {
+  width: 100%;
+  height: 320px;
+}
+
+.map-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  height: 100%;
+  color: #a0aec0;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.map-placeholder code {
+  background: rgba(15, 25, 35, 0.9);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.4rem;
+  font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+  color: #63b3ed;
+}
+
+.event-results {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.event-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.event-card {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1rem;
+  background: rgba(15, 20, 30, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.event-card:hover {
+  border-color: rgba(99, 179, 237, 0.45);
+  transform: translateY(-1px);
+}
+
+.event-card--active {
+  border-color: rgba(99, 179, 237, 0.75);
+  box-shadow: 0 0 0 1px rgba(99, 179, 237, 0.5);
+}
+
+.event-card__content {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.event-card__content h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.event-card__address {
+  margin: 0;
+  color: #cbd5f5;
+  font-weight: 500;
+}
+
+.event-card__meta {
+  margin: 0;
+  color: #a0aec0;
+  font-size: 0.85rem;
+}
+
+.event-card__summary {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.event-card__links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.event-card__links a {
+  color: #63b3ed;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.event-card__links a:hover {
+  text-decoration: underline;
+}
+
+.map-popup {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.map-popup h4,
+.map-popup strong {
+  color: #0f172a;
+}
+
+.map-popup a {
+  display: block;
+  margin-top: 0.4rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.map-popup a:hover {
+  text-decoration: underline;
 }
 

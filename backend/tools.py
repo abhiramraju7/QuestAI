@@ -12,8 +12,9 @@ from urllib.parse import quote_plus
 import httpx
 from supabase import Client  # type: ignore
 
-from backend.schemas import UserTaste
+from backend.schemas import UserTaste, FriendOverride
 from backend.supabase_client import safe_get_supabase_client
+from backend.mock_events import get_tool_candidates
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,18 @@ def _fetch_profile_from_supabase(user_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def tool_get_user_taste(user_id: str) -> UserTaste:
+def tool_get_user_taste(user_id: str, overrides: Optional[Dict[str, FriendOverride]] = None) -> UserTaste:
+    if overrides and user_id in overrides:
+        override = overrides[user_id]
+        return UserTaste(
+            user_id=override.user_id,
+            likes=list(override.likes),
+            vibes=list(override.vibes),
+            tags=list(override.tags),
+            budget_max=override.budget_max,
+            distance_km_max=override.distance_km_max,
+        )
+
     record = _fetch_profile_from_supabase(user_id)
 
     if not record:
@@ -210,7 +222,7 @@ def _parse_time_window(time_window: Optional[str]) -> Tuple[Optional[str], Optio
 def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
     if not api_key:
-        return []
+        return get_tool_candidates("google_places", query)
 
     coords = _geocode_location(query.get("location"))
     radius_km = query.get("distance_cap") or 5
@@ -296,7 +308,7 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
 def _fetch_eventbrite_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     token = os.getenv("EVENTBRITE_API_KEY")
     if not token:
-        return []
+        return get_tool_candidates("eventbrite", query)
 
     coords = _geocode_location(query.get("location"))
     start_iso, end_iso = _parse_time_window(query.get("time_window"))
@@ -440,11 +452,13 @@ def tool_find_activities(query: Dict[str, Any]) -> List[Dict[str, Any]]:
 # === Inspired extensions (stubs for agentic flow) ===
 
 @lru_cache(maxsize=512)
-def tool_get_user_taste_cached(user_id: str) -> UserTaste:
+def tool_get_user_taste_cached(user_id: str, overrides: Optional[Dict[str, FriendOverride]] = None) -> UserTaste:
     """
     Lightweight in-process cache for user tastes.
     Replace with Supabase row fetch + HTTP cache headers.
     """
+    if overrides:
+        return tool_get_user_taste(user_id, overrides=overrides)
     return tool_get_user_taste(user_id)
 
 
