@@ -1,5 +1,5 @@
 from typing import List, Optional, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 Vibe = Literal[
     "chill",
@@ -31,6 +31,11 @@ class GroupRequest(BaseModel):
     user_ids: List[str]
     location_hint: Optional[str] = None
     time_window: Optional[str] = None
+    vibe_hint: Optional[str] = None
+    budget_cap: Optional[float] = None
+    distance_km: Optional[float] = None
+    custom_likes: List[str] = Field(default_factory=list)
+    custom_tags: List[str] = Field(default_factory=list)
 
 class PlanCard(BaseModel):
     title: str

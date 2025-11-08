@@ -190,6 +190,7 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     if query.get("vibe"):
         keyword_parts.append(str(query["vibe"]))
     keyword_parts.extend(query.get("likes") or [])
+    keyword_parts.extend(query.get("tags") or [])
     keyword = " ".join(keyword_parts) or "activities"
 
     price_level_cap = _budget_cap_to_price_level(query.get("budget_cap"))
@@ -258,10 +259,16 @@ def _fetch_eventbrite_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     coords = _geocode_location(query.get("location"))
     start_iso, end_iso = _parse_time_window(query.get("time_window"))
 
+    search_terms: List[str] = []
+    if query.get("vibe"):
+        search_terms.append(str(query["vibe"]))
+    search_terms.extend(query.get("likes") or [])
+    search_terms.extend(query.get("tags") or [])
+
     params: Dict[str, Any] = {
         "token": token,
         "expand": "venue,category,subcategory",
-        "q": query.get("vibe") or "activities",
+        "q": " ".join(t for t in search_terms if t).strip() or "activities",
         "sort_by": "date",
         "page_size": 20,
     }
@@ -271,10 +278,15 @@ def _fetch_eventbrite_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
         params["location.longitude"] = coords[1]
         radius_km = query.get("distance_cap") or 10
         params["location.within"] = f"{max(1, min(int(radius_km), 50))}km"
+    elif query.get("location"):
+        params["location.address"] = query["location"]
 
     budget_cap = query.get("budget_cap")
-    if budget_cap is not None and budget_cap <= 0:
-        params["price"] = "free"
+    if budget_cap is not None:
+        if budget_cap <= 0:
+            params["price"] = "free"
+        elif budget_cap <= 35:
+            params["price"] = "paid"
 
     if start_iso:
         params["start_date.range_start"] = start_iso

@@ -14,7 +14,10 @@ def _run():
         query_text="we're bored but want something outdoorsy with live music near Cambridge after 5pm, under twenty bucks",
         user_ids=["u1","u2","u3"],
         location_hint="Cambridge, MA",
-        time_window="today 5-8pm"
+        time_window="today 5-8pm",
+        custom_tags=["live music","outdoors"],
+        custom_likes=["jazz picnic"],
+        vibe_hint="music",
     )
     resp = plan(req)
     print("ACTION LOG:", " | ".join(resp.action_log))

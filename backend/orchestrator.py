@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from .schemas import GroupRequest, PlanResponse
 from .agents import ListenerAgent, PlannerAgent, WriterAgent
 import os
@@ -20,11 +22,14 @@ def plan(req: GroupRequest) -> PlanResponse:
     l_out = listener.run(req.query_text)
     action_log.append("Listener: parsed vibes/time/budget")
 
+    overrides: Dict[str, Any] = req.model_dump()
+
     p_out = planner.run(
         req.user_ids,
         l_out,
         req.location_hint or "Boston, MA",
-        req.time_window
+        req.time_window,
+        overrides,
     )
     action_log.append("Planner: merged tastes & fetched activities")
 

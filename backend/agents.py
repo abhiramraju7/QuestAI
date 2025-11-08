@@ -63,7 +63,8 @@ class PlannerAgent:
         user_ids: List[str],
         listener_out: Dict[str, Any],
         location_hint: str,
-        time_window: Optional[str]
+        time_window: Optional[str],
+        request_overrides: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         # 1) fetch tastes
         tastes = [tool_get_user_taste(uid) for uid in user_ids]
@@ -71,8 +72,22 @@ class PlannerAgent:
         merged = tool_merge_tastes(tastes)
         merged["location"] = location_hint
         merged["time_window"] = time_window or listener_out.get("time_hint")
-        # prefer listener’s top vibe if present; else merged heuristic
-        merged["vibe"] = (listener_out.get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
+        overrides = request_overrides or {}
+        if overrides.get("budget_cap") is not None:
+            merged["budget_cap"] = overrides["budget_cap"]
+        if overrides.get("distance_km") is not None:
+            merged["distance_cap"] = overrides["distance_km"]
+        likes_extra = overrides.get("custom_likes") or []
+        if likes_extra:
+            merged["likes"] = list({*merged.get("likes", []), *likes_extra})
+        tags_extra = overrides.get("custom_tags") or []
+        if tags_extra:
+            merged["tags"] = list({*merged.get("tags", []), *tags_extra})
+        # prefer explicit vibe hint, else listener’s top vibe if present; else merged heuristic
+        merged["vibe"] = (
+            overrides.get("vibe_hint")
+            or (listener_out.get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
+        )
         merged["energy_level"] = listener_out.get("energy_level", "medium")
         # 3) search activities
         raw = tool_find_activities(merged)

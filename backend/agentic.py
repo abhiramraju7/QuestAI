@@ -21,6 +21,51 @@ class AgenticController:
         self.listener = ListenerAgent()
         self.writer = WriterAgent()
 
+    def _apply_request_overrides(
+        self,
+        merged: Dict[str, Any],
+        state: Dict[str, Any],
+        controller_overrides: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        merged = dict(merged)
+        overrides = controller_overrides or {}
+        listener = state.get("listener") or {}
+
+        merged["location"] = overrides.get("location") or state.get("location")
+        merged["time_window"] = overrides.get("time_window") or state.get("time_window") or listener.get("time_hint")
+
+        budget_cap_override = state.get("budget_cap_override")
+        if budget_cap_override is not None:
+            merged["budget_cap"] = budget_cap_override
+        distance_override = state.get("distance_override")
+        if distance_override is not None:
+            merged["distance_cap"] = distance_override
+
+        likes_extra: List[str] = []
+        if state.get("custom_likes"):
+            likes_extra.extend(state["custom_likes"])
+        if overrides.get("likes"):
+            likes_extra.extend(overrides["likes"])
+        if likes_extra:
+            merged["likes"] = list({*merged.get("likes", []), *likes_extra})
+
+        tags_extra: List[str] = []
+        if state.get("custom_tags"):
+            tags_extra.extend(state["custom_tags"])
+        if overrides.get("tags"):
+            tags_extra.extend(overrides["tags"])
+        if tags_extra:
+            merged["tags"] = list({*merged.get("tags", []), *tags_extra})
+
+        merged["vibe"] = (
+            overrides.get("vibe")
+            or state.get("vibe_hint")
+            or (listener.get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
+        )
+        merged["energy_level"] = overrides.get("energy_level") or listener.get("energy_level", "medium")
+
+        return merged
+
     def _decide(self, state: Dict[str, Any]) -> Dict[str, Any]:
         # Ask LLM controller which tool to call next
         prompt = {
@@ -52,6 +97,11 @@ class AgenticController:
             "merged": None,
             "raw_candidates": [],
             "observations": [],
+            "custom_likes": req.custom_likes,
+            "custom_tags": req.custom_tags,
+            "budget_cap_override": req.budget_cap,
+            "distance_override": req.distance_km,
+            "vibe_hint": req.vibe_hint,
         }
 
         # Default deterministic path if controller cannot produce actions
@@ -69,10 +119,7 @@ class AgenticController:
                     # Fallback: get tastes → merge → search → write
                     tastes = [tool_get_user_taste(uid) for uid in req.user_ids]
                     merged = tool_merge_tastes(tastes)
-                    merged["location"] = state["location"]
-                    merged["time_window"] = state["time_window"] or state["listener"].get("time_hint")
-                    merged["vibe"] = (state["listener"].get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
-                    merged["energy_level"] = state["listener"].get("energy_level", "medium")
+                    merged = self._apply_request_overrides(merged, state)
                     raw = tool_find_activities(merged)
                     cards = self.writer.run({"merged": merged, "raw_candidates": raw})
                     default_plan = PlanResponse(
@@ -103,11 +150,7 @@ class AgenticController:
                     state["tastes"] = tastes
                 merged = tool_merge_tastes(state["tastes"])
                 overrides = (args.get("overrides") or {})
-                # Listener-informed defaults
-                merged["location"] = overrides.get("location") or state["location"]
-                merged["time_window"] = overrides.get("time_window") or state["time_window"] or state["listener"].get("time_hint")
-                merged["vibe"] = overrides.get("vibe") or (state["listener"].get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
-                merged["energy_level"] = overrides.get("energy_level") or state["listener"].get("energy_level", "medium")
+                merged = self._apply_request_overrides(merged, state, overrides)
                 state["merged"] = merged
                 obs = f"Merged tastes → vibe={merged.get('vibe')} budget_cap={merged.get('budget_cap')}"
                 state["observations"].append(obs)
@@ -118,10 +161,7 @@ class AgenticController:
                 if not state.get("merged"):
                     # Merge if not done
                     merged = tool_merge_tastes(state["tastes"])
-                    merged["location"] = state["location"]
-                    merged["time_window"] = state["time_window"] or state["listener"].get("time_hint")
-                    merged["vibe"] = (state["listener"].get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
-                    merged["energy_level"] = state["listener"].get("energy_level", "medium")
+                    merged = self._apply_request_overrides(merged, state)
                     state["merged"] = merged
                 raw = tool_find_activities(state["merged"])
                 state["raw_candidates"] = raw
@@ -131,17 +171,14 @@ class AgenticController:
                 continue
 
             if action == "search_places_grid":
-                merged = state.get("merged") or {}
+                merged = state.get("merged")
                 if not merged:
                     # ensure merged exists
                     if not state["tastes"]:
                         state["tastes"] = [tool_get_user_taste_cached(uid) for uid in state["user_ids"]]
                     merged = tool_merge_tastes(state["tastes"])
-                    merged["location"] = state["location"]
-                    merged["time_window"] = state["time_window"] or state["listener"].get("time_hint")
-                    merged["vibe"] = (state["listener"].get("primary_vibes") or [merged.get("merged_vibe", "chill")])[0]
-                    merged["energy_level"] = state["listener"].get("energy_level", "medium")
-                    state["merged"] = merged
+                merged = self._apply_request_overrides(merged, state)
+                state["merged"] = merged
                 grid = tool_search_places_grid(merged)
                 # prefer union with prior candidates
                 prev = state.get("raw_candidates") or []

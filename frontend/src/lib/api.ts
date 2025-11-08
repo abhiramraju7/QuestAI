@@ -5,6 +5,11 @@ type GroupRequest = {
   user_ids: string[];
   location_hint?: string;
   time_window?: string;
+  vibe_hint?: string;
+  budget_cap?: number;
+  distance_km?: number;
+  custom_likes?: string[];
+  custom_tags?: string[];
 };
 
 export async function fetchPlan(payload: GroupRequest) {

@@ -32,8 +32,27 @@ Environment variables (backend):
 
 - `GEMINI_API_KEY` *(optional)* — enables Google Gemini for the listener/writer agents. Without it, the service falls back to deterministic mocks.
 - `GEMINI_MODEL` *(optional, default `gemini-1.5-flash`)* — override the Gemini model.
-- `GOOGLE_PLACES_API_KEY` *(optional)* — enables live place discovery and geocoding via Google Places.
-- `EVENTBRITE_API_KEY` *(optional)* — enables live event discovery via the Eventbrite API.
+- `GOOGLE_PLACES_API_KEY` — required for live place discovery and geocoding via Google Places.
+- `EVENTBRITE_API_KEY` — required for live event discovery via the Eventbrite API.
+- `USE_AGENTIC` *(optional)* — set to `1` to enable the iterative controller workflow.
+
+**Request payload fields**
+
+```jsonc
+{
+  "query_text": "Natural language mood prompt",
+  "user_ids": ["u1", "u2"],
+  "location_hint": "Cambridge, MA",
+  "time_window": "today 5-8pm",
+  "vibe_hint": "music",
+  "budget_cap": 25,
+  "distance_km": 5,
+  "custom_likes": ["jazz", "sunset picnic"],
+  "custom_tags": ["live music", "outdoor"]
+}
+```
+
+`custom_likes` and `custom_tags` flow into both Google Places and Eventbrite searches, so the backend can reconcile your personal suggestions with your friends’ profiles when assembling plan cards.
 
 Test locally:
 
@@ -44,7 +63,8 @@ curl -X POST http://localhost:8000/api/v1/plan \
         "query_text": "We are broke, want outdoor music near Cambridge after 5pm.",
         "user_ids": ["u1","u2","u3"],
         "location_hint": "Cambridge, MA",
-        "time_window": "today 5-8pm"
+        "time_window": "today 5-8pm",
+        "custom_tags": ["live music", "outdoor"]
       }'
 ```
 
