@@ -1,5 +1,4 @@
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
 
 type GroupRequest = {
   query_text: string;
@@ -9,7 +8,10 @@ type GroupRequest = {
 };
 
 export async function fetchPlan(payload: GroupRequest) {
-  const res = await fetch(`${API_BASE}/api/v1/plan`, {
+  const base = API_BASE || `${window.location.origin}/.netlify/functions`;
+  const url = API_BASE ? `${base}/api/v1/plan` : `${base}/plan`;
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
