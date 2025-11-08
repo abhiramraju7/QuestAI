@@ -1,11 +1,20 @@
 from .schemas import GroupRequest, PlanResponse
 from .agents import ListenerAgent, PlannerAgent, WriterAgent
+import os
+try:
+    from .agentic import agentic_plan
+except Exception:
+    agentic_plan = None  # type: ignore
 
 listener = ListenerAgent()
 planner  = PlannerAgent()
 writer   = WriterAgent()
 
 def plan(req: GroupRequest) -> PlanResponse:
+    # Use agentic controller if enabled and available
+    if os.getenv("USE_AGENTIC") == "1" and agentic_plan is not None:
+        return agentic_plan(req)
+
     action_log = []
 
     l_out = listener.run(req.query_text)

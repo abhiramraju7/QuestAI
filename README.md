@@ -99,6 +99,25 @@ Optional: remove or adjust the redirect in `netlify.toml` once you know your bac
 
 ---
 
+## Agentic Mode (ReAct-style tool loop)
+
+This repo includes an actual agentic controller that plans iteratively via tool calls.
+
+- Controller: `backend/agentic.py` (uses a loop: get_tastes → merge_tastes → find_activities → finalize)
+- Prompt: `SYSTEM_CONTROLLER` in `backend/prompts.py`
+- Enable via environment variable:
+
+```bash
+export USE_AGENTIC=1
+uvicorn backend.api:app --host 0.0.0.0 --port 8000
+```
+
+When `USE_AGENTIC=1`, `backend/orchestrator.py` routes requests to the controller. The controller optionally leverages Gemini (if `GEMINI_API_KEY` is set) for deciding next actions, while tool execution (profiles merge, activity search, writing/scoring) happens deterministically in code.
+
+If you prefer Google’s Agent Developer Kit (ADK) or other frameworks (e.g., LangGraph), the controller is isolated so you can swap the decision layer while keeping the existing tools and schemas.
+
+---
+
 ## Hackathon Pitch Snapshots
 
 - **Concept** — Vivi mediates “What should we do?” decisions better than any group chat.
