@@ -1,4 +1,7 @@
-import { FormEvent, useMemo, useState } from "react";
+/// <reference path="./types/react-shim.d.ts" />
+import React from "react";
+import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { fetchPlan } from "./lib/api";
 
 type Vibe =
@@ -41,37 +44,57 @@ type PlanResponse = {
   action_log: string[];
 };
 
-const FRIENDS = [
-  { id: "u1", name: "Abhiram", tags: ["music", "creative", "night"] },
-  { id: "u2", name: "Nina", tags: ["outdoors", "budget", "daytime"] },
-  { id: "u3", name: "Kai", tags: ["cozy", "games", "mindful"] },
-  { id: "u4", name: "Sam", tags: ["party", "dance", "late-night"] },
+type Person = {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  bio: string;
+  tags: string[];
+};
+
+const PEOPLE: Person[] = [
+  {
+    id: "u1",
+    name: "Aria",
+    initials: "AR",
+    color: "#7dd3fc",
+    bio: "Live sets, latte art, late nights.",
+    tags: ["music", "creative", "night"],
+  },
+  {
+    id: "u2",
+    name: "Noah",
+    initials: "NO",
+    color: "#86efac",
+    bio: "Sunsets, markets, kayaks.",
+    tags: ["outdoors", "budget", "daytime"],
+  },
+  {
+    id: "u3",
+    name: "Kai",
+    initials: "KA",
+    color: "#c7d2fe",
+    bio: "Indie films and tea houses.",
+    tags: ["cozy", "games", "mindful"],
+  },
+  {
+    id: "u4",
+    name: "Sana",
+    initials: "SA",
+    color: "#fca5a5",
+    bio: "Dance floors and neon nights.",
+    tags: ["party", "dance", "late-night"],
+  },
 ];
 
 export default function App() {
-  const [query, setQuery] = useState(
-    "We’re bored, under $20, want something outdoorsy with music near Cambridge after 5pm."
-  );
-  const [locationHint, setLocationHint] = useState("Cambridge, MA");
-  const [timeWindow, setTimeWindow] = useState("Today 5-9pm");
-  const [vibeHint, setVibeHint] = useState("music");
-  const [budgetCap, setBudgetCap] = useState<string>("20");
-  const [distanceKm, setDistanceKm] = useState<string>("5");
-  const [customLikes, setCustomLikes] = useState("live music, sunset picnic");
-  const [customTags, setCustomTags] = useState("outdoor, group, evening");
-  const [selectedFriends, setSelectedFriends] = useState<string[]>(["u1", "u2", "u3"]);
+  const [selectedId, setSelectedId] = useState<string>(PEOPLE[0].id);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<PlanResponse | null>(null);
-  const [lastContext, setLastContext] = useState<{
-    location: string;
-    time: string;
-    vibeHint?: string;
-    budget?: number;
-    distance?: number;
-    likes: string[];
-    tags: string[];
-  } | null>(null);
+  const [personResult, setPersonResult] = useState<Record<string, PlanResponse | null>>({});
+  const [groupResult, setGroupResult] = useState<PlanResponse | null>(null);
+  const [selectedCard, setSelectedCard] = useState<PlanCard | null>(null);
 
   const vibePalette: Record<Vibe, string> = useMemo(
     () => ({
@@ -92,276 +115,233 @@ export default function App() {
     []
   );
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const selectedPerson = PEOPLE.find((p) => p.id === selectedId)!;
+
+  async function generateForPerson(personId: string) {
     setLoading(true);
     setError(null);
-    setResult(null);
-    setLastContext(null);
-
+    setGroupResult(null);
     try {
-      const likesArray = customLikes
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-      const tagsArray = customTags
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
       const data = await fetchPlan({
-        query_text: query,
-        user_ids: selectedFriends,
-        location_hint: locationHint,
-        time_window: timeWindow,
-        vibe_hint: vibeHint || undefined,
-        budget_cap: budgetCap ? Number(budgetCap) : undefined,
-        distance_km: distanceKm ? Number(distanceKm) : undefined,
-        custom_likes: likesArray,
-        custom_tags: tagsArray,
+        query_text: "Generate a few great activities based on this profile’s vibe.",
+        user_ids: [personId],
+        location_hint: "Cambridge, MA",
+        time_window: "Tonight 5-9pm",
       });
-      setResult(data);
-      setLastContext({
-        location: locationHint,
-        time: timeWindow,
-        vibeHint: vibeHint || undefined,
-        budget: budgetCap ? Number(budgetCap) : undefined,
-        distance: distanceKm ? Number(distanceKm) : undefined,
-        likes: likesArray,
-        tags: tagsArray,
-      });
+      setPersonResult((prev: Record<string, PlanResponse | null>) => ({ ...prev, [personId]: data }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch plan.");
+      setError(err instanceof Error ? err.message : "Failed to fetch activities.");
     } finally {
       setLoading(false);
     }
   }
 
-  function toggleFriend(id: string) {
-    setSelectedFriends((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-    );
+  async function generateForGroup() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchPlan({
+        query_text: "Plan something the whole group will love.",
+        user_ids: PEOPLE.map((p) => p.id),
+        location_hint: "Cambridge, MA",
+        time_window: "Tonight 5-9pm",
+      });
+      setGroupResult(data);
+      setSelectedCard(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch group plan.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const SAMPLE_NODES: PlanCard[] = useMemo(
+    () => [
+      {
+        title: "Riverside Jazz Picnic",
+        subtitle: null,
+        time: "Tonight 6-8pm",
+        price: "free",
+        vibe: "music",
+        energy: "medium",
+        address: "Riverbend Park, Cambridge",
+        lat: null,
+        lng: null,
+        distance_km: 2,
+        booking_url: null,
+        group_score: 0.92,
+        reasons: ["Matches vibe: music", "Budget OK: free"],
+        source: "cached",
+      },
+      {
+        title: "Night Market Crawl",
+        subtitle: null,
+        time: "7-10pm",
+        price: "$",
+        vibe: "creative",
+        energy: "high",
+        address: "Union Sq, Somerville",
+        lat: null,
+        lng: null,
+        distance_km: 3.1,
+        booking_url: null,
+        group_score: 0.74,
+        reasons: ["Creative tags overlap", "Walkable"],
+        source: "cached",
+      },
+      {
+        title: "Trivia Bar",
+        subtitle: null,
+        time: "8-10pm",
+        price: "$",
+        vibe: "social",
+        energy: "medium",
+        address: "Central Sq",
+        lat: null,
+        lng: null,
+        distance_km: 1.2,
+        booking_url: null,
+        group_score: 0.63,
+        reasons: ["Social vibe match"],
+        source: "cached",
+      },
+      {
+        title: "Indie Film + Tea",
+        subtitle: null,
+        time: "6:30-9pm",
+        price: "$",
+        vibe: "mindful",
+        energy: "low",
+        address: "Somerville Theatre",
+        lat: null,
+        lng: null,
+        distance_km: 4.1,
+        booking_url: null,
+        group_score: 0.68,
+        reasons: ["Mindful night activity"],
+        source: "cached",
+      },
+      {
+        title: "Kayak Sunset",
+        subtitle: null,
+        time: "5-7pm",
+        price: "$",
+        vibe: "adventure",
+        energy: "high",
+        address: "Charles River",
+        lat: null,
+        lng: null,
+        distance_km: 2.7,
+        booking_url: null,
+        group_score: 0.58,
+        reasons: ["Outdoor + sunset"],
+        source: "cached",
+      },
+      {
+        title: "Gallery Pop-up",
+        subtitle: null,
+        time: "6-9pm",
+        price: "free",
+        vibe: "artsy",
+        energy: "medium",
+        address: "SoWa",
+        lat: null,
+        lng: null,
+        distance_km: 5.6,
+        booking_url: null,
+        group_score: 0.71,
+        reasons: ["Creative, free"],
+        source: "cached",
+      },
+    ],
+    []
+  );
+
+  const nodes: PlanCard[] = useMemo(
+    () => groupResult?.candidates ?? SAMPLE_NODES,
+    [groupResult, SAMPLE_NODES]
+  );
+
+  function colorFromScore(score: number): string {
+    const clamped = Math.max(0, Math.min(1, score));
+    // interpolate hue: 30 (orange) -> 265 (violet) by score
+    const hue = 30 + (265 - 30) * clamped;
+    return `hsl(${Math.round(hue)} 85% 65% / 0.6)`;
+  }
+
+  function orbitVars(idx: number, total: number): CSSProperties {
+    const baseRadius = 120;
+    const radiusStep = 50;
+    const layer = idx % 3;
+    const r = baseRadius + layer * radiusStep;
+    const angle = (360 / total) * idx;
+    const duration = 28 + (idx % 5) * 6;
+    return {
+      ["--r" as any]: `${r}px`,
+      ["--a" as any]: `${angle}deg`,
+      ["--d" as any]: `${duration}s`,
+    } as CSSProperties;
+  }
+
+  function onNodeClick(card: PlanCard) {
+    setSelectedCard(card);
+  }
+
+  function sendReaction(card: PlanCard, emoji: string) {
+    // TODO: Wire to backend feedback endpoint
+    console.log("Reaction", { title: card.title, emoji });
   }
 
   return (
     <div className="app-shell">
       <header>
-        <span className="brand">Vivi</span>
-        <p className="tagline">
-          The agentic social activity network. You bring the vibe. Your friends bring the time. AI
-          orchestrates the plan.
-        </p>
+        <span className="brand">Quest Mode</span>
+        <p className="tagline">Agentic activity circles for your crew.</p>
       </header>
 
-      <main>
-        <section className="planner-panel">
-          <form onSubmit={onSubmit}>
-            <label>
-              Mood Input
-              <textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="What's the vibe?"
-                rows={4}
-              />
-            </label>
-
-            <div className="inputs-grid">
-              <label>
-                Where?
-                <input
-                  value={locationHint}
-                  onChange={(e) => setLocationHint(e.target.value)}
-                  placeholder="Neighborhood or city"
-                />
-              </label>
-              <label>
-                When?
-                <input
-                  value={timeWindow}
-                  onChange={(e) => setTimeWindow(e.target.value)}
-                  placeholder="e.g. Tonight 6-9pm"
-                />
-              </label>
-            </div>
-
-            <div className="inputs-grid">
-              <label>
-                Optional vibe hint
-                <input
-                  value={vibeHint}
-                  onChange={(e) => setVibeHint(e.target.value)}
-                  placeholder="music, outdoors, romantic..."
-                />
-              </label>
-              <label>
-                Budget cap (USD)
-                <input
-                  value={budgetCap}
-                  onChange={(e) => setBudgetCap(e.target.value)}
-                  type="number"
-                  min="0"
-                  placeholder="20"
-                />
-              </label>
-              <label>
-                Distance max (km)
-                <input
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  type="number"
-                  min="0"
-                  placeholder="5"
-                />
-              </label>
-            </div>
-
-            <label>
-              Custom likes (comma separated)
-              <input
-                value={customLikes}
-                onChange={(e) => setCustomLikes(e.target.value)}
-                placeholder="live music, cafe crawl, art pop-up"
-              />
-            </label>
-
-            <label>
-              Tags or constraints (comma separated)
-              <input
-                value={customTags}
-                onChange={(e) => setCustomTags(e.target.value)}
-                placeholder="outdoor, group-friendly, free"
-              />
-            </label>
-
-            <fieldset className="friends">
-              <legend>Tag friends to merge their vibes</legend>
-              <div className="chips">
-                {FRIENDS.map((friend) => {
-                  const active = selectedFriends.includes(friend.id);
-                  return (
-                    <button
-                      key={friend.id}
-                      type="button"
-                      className={`chip ${active ? "chip--active" : ""}`}
-                      onClick={() => toggleFriend(friend.id)}
-                    >
-                      <span>{friend.name}</span>
-                      <small>{friend.tags.join(" · ")}</small>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <button className="primary" type="submit" disabled={loading}>
-              {loading ? "Orchestrating..." : "Spin up a plan"}
+      <main className="qm-layout">
+        <section className="qm-hub qm-constellation">
+          <div className="qm-center">
+            <div className={`qm-logo ${loading ? "qm-logo--pulse" : ""}`}>Quest Mode</div>
+            <button className="primary qm-group-btn" onClick={generateForGroup} disabled={loading}>
+              {loading ? "Computing alignment..." : "Generate group plan"}
             </button>
-          </form>
-          <aside className="concept">
-            <h2>Agent Graph</h2>
-            <p>
-              Vivi listens to your mood, retrieves everyone’s preferences, merges the vibes, scouts
-              the city, and drafts a ready-to-book plan card — all in seconds.
-            </p>
-            <ul>
-              <li>
-                <strong>Listener</strong> parses emotion + intent.
-              </li>
-              <li>
-                <strong>Profile</strong> maps taste graphs.
-              </li>
-              <li>
-                <strong>Merge</strong> finds the overlap.
-              </li>
-              <li>
-                <strong>Explorer</strong> combs APIs for matches.
-              </li>
-              <li>
-                <strong>Writer</strong> crafts vibe cards.
-              </li>
-              <li>
-                <strong>Scheduler</strong> syncs the squad.
-              </li>
-            </ul>
-          </aside>
+          </div>
+
+          {nodes.map((card: PlanCard, idx: number) => {
+            const halo = colorFromScore(card.group_score);
+            const vars = orbitVars(idx, nodes.length);
+            return (
+              <div key={card.title} className="qm-orbit" style={vars}>
+                <button
+                  type="button"
+                  className="qm-star"
+                  style={{ ["--halo" as any]: halo } as CSSProperties}
+                  onClick={() => onNodeClick(card)}
+                  title={card.title}
+                >
+                  <span className="qm-star-title">{card.title}</span>
+                  <span className="qm-star-vibe">{card.vibe}</span>
+                </button>
+              </div>
+            );
+          })}
         </section>
 
-        <section className="results-panel">
+        <section className="qm-panel">
           {error && <div className="error">{error}</div>}
-          {!loading && !error && !result && (
-            <p className="placeholder">Drop a vibe above to see Vivi’s picks.</p>
-          )}
 
-          {loading && <p className="placeholder">Synthesizing mood graph...</p>}
-
-          {result && (
-            <>
-              <div className="summary">
-                <div>
-                  <h2>Top Picks for “{result.query_normalized}”</h2>
-                  <p>
-                    Shared vibe: <span className="badge">{result.merged_vibe}</span>{" "}
-                    {result.energy_profile && (
-                      <>
-                        · Energy:{" "}
-                        <span className="badge badge--muted">{result.energy_profile}</span>
-                      </>
-                    )}
-                  </p>
-                </div>
-                <div className="log">
-                  {result.action_log.map((entry, idx) => (
-                    <span key={idx}>{entry}</span>
-                  ))}
-                </div>
-              </div>
-              {lastContext && (
-                <div className="constraints-card">
-                  <h3>Planner inputs</h3>
-                  <div className="constraint-grid">
-                    <span>
-                      <strong>Where:</strong> {lastContext.location}
-                    </span>
-                    <span>
-                      <strong>When:</strong> {lastContext.time}
-                    </span>
-                    {lastContext.vibeHint && (
-                      <span>
-                        <strong>Vibe hint:</strong> {lastContext.vibeHint}
-                      </span>
-                    )}
-                    {lastContext.budget !== undefined && (
-                      <span>
-                        <strong>Budget ≤</strong> ${lastContext.budget}
-                      </span>
-                    )}
-                    {lastContext.distance !== undefined && (
-                      <span>
-                        <strong>Radius ≤</strong> {lastContext.distance} km
-                      </span>
-                    )}
-                    {lastContext.likes.length > 0 && (
-                      <span className="list-line">
-                        <strong>Likes:</strong> {lastContext.likes.join(", ")}
-                      </span>
-                    )}
-                    {lastContext.tags.length > 0 && (
-                      <span className="list-line">
-                        <strong>Tags:</strong> {lastContext.tags.join(", ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
+          {groupResult && (
+            <div className="constraints-card">
+              <h3>Group plan</h3>
               <div className="cards-grid">
-                {result.candidates.map((card) => (
+                {groupResult.candidates.map((card: PlanCard) => (
                   <article key={card.title} className="plan-card">
                     <header>
                       <h3>{card.title}</h3>
                       <span
                         className="vibe-pill"
-                        style={{ backgroundColor: vibePalette[card.vibe] ?? "#CBD5F5" }}
+                        style={{ backgroundColor: vibePalette[card.vibe as Vibe] ?? "#CBD5F5" }}
                       >
                         {card.vibe}
                       </span>
@@ -371,11 +351,9 @@ export default function App() {
                       {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
                       <span className="source-pill">{card.source}</span>
                     </p>
-                    {card.energy && <p className="meta">Energy match: {card.energy}</p>}
-                    {card.time && <p className="meta">Suggested time: {card.time}</p>}
                     {card.address && <p className="address">{card.address}</p>}
                     <ul className="reason-list">
-                      {card.reasons.map((reason) => (
+                      {card.reasons.map((reason: string) => (
                         <li key={reason}>{reason}</li>
                       ))}
                     </ul>
@@ -390,16 +368,67 @@ export default function App() {
                   </article>
                 ))}
               </div>
-            </>
+            </div>
+          )}
+
+          {selectedCard && (
+            <div className="constraints-card">
+              <h3>{selectedCard.title}</h3>
+              <p className="meta">
+                {selectedCard.address ? selectedCard.address : "address unknown"} ·{" "}
+                {selectedCard.price ?? "—"} · {selectedCard.vibe}
+              </p>
+              <div className="qm-reactions">
+                {["👍", "🔥", "💜", "🤔", "👎"].map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    className="qm-reaction"
+                    onClick={() => sendReaction(selectedCard, e)}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+              <div className="cards-grid">
+                <article className="plan-card">
+                  <header>
+                    <h3>{selectedCard.title}</h3>
+                    <span
+                      className="vibe-pill"
+                      style={{ backgroundColor: vibePalette[selectedCard.vibe as Vibe] ?? "#CBD5F5" }}
+                    >
+                      {selectedCard.vibe}
+                    </span>
+                  </header>
+                  <p className="meta">
+                    {selectedCard.price ? `Price: ${selectedCard.price}` : "Price: —"} ·{" "}
+                    {selectedCard.distance_km ? `${selectedCard.distance_km} km` : "distance unknown"} ·{" "}
+                    <span className="source-pill">{selectedCard.source}</span>
+                  </p>
+                  {selectedCard.address && <p className="address">{selectedCard.address}</p>}
+                  <ul className="reason-list">
+                    {selectedCard.reasons.map((reason: string) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                  <footer>
+                    <span className="score">Score {Math.round(selectedCard.group_score * 100)}%</span>
+                    {selectedCard.booking_url && (
+                      <a href={selectedCard.booking_url} target="_blank" rel="noreferrer">
+                        Book / Share
+                      </a>
+                    )}
+                  </footer>
+                </article>
+              </div>
+            </div>
           )}
         </section>
       </main>
 
       <footer>
-        <p>
-          Built for crews who ask “What should we do?” Vivi learns your vibe signatures and keeps the
-          energy flowing.
-        </p>
+        <p>Powered by an agentic planning graph.</p>
       </footer>
     </div>
   );

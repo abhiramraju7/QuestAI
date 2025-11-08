@@ -14,7 +14,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "baseUrl": ".",
+    "paths": {
+      "react": ["src/types/react-shim"],
+      "react/jsx-runtime": ["src/types/react-shim"],
+      "react-dom": ["src/types/react-shim"],
+      "react-dom/*": ["src/types/react-shim"]
+    }
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

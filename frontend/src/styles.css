@@ -373,3 +373,138 @@ footer {
   }
 }
 
+/* ===== Quest Mode Constellation ===== */
+.qm-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.qm-constellation {
+  position: relative;
+  min-height: 560px;
+}
+
+.qm-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 0.75rem;
+  place-items: center;
+  z-index: 2;
+}
+
+.qm-logo {
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: #0b0c10;
+  background: linear-gradient(135deg, #a7f3d0, #93c5fd);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 30px rgba(99, 179, 237, 0.25);
+}
+
+.qm-logo--pulse {
+  animation: qm-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes qm-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.05); }
+}
+
+.qm-group-btn {
+  font-size: 0.9rem;
+  padding: 0.7rem 1rem;
+}
+
+.qm-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  animation: qm-spin var(--d, 30s) linear infinite;
+}
+
+@keyframes qm-spin {
+  from { transform: rotate(var(--a, 0deg)); }
+  to { transform: rotate(calc(var(--a, 0deg) + 360deg)); }
+}
+
+.qm-star {
+  position: absolute;
+  transform: translateX(var(--r, 160px));
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 0 0 6px var(--halo, rgba(129, 230, 217, 0.2)),
+    0 10px 25px rgba(0, 0, 0, 0.35);
+  color: #f7fafc;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  text-align: center;
+}
+
+.qm-star:hover {
+  transform: translateX(var(--r, 160px)) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.qm-star-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.qm-star-vibe {
+  font-size: 0.7rem;
+  color: #cbd5f5;
+  text-transform: capitalize;
+}
+
+.qm-reactions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.qm-reaction {
+  all: unset;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+@media (max-width: 900px) {
+  .qm-layout {
+    grid-template-columns: 1fr;
+  }
+  .qm-constellation {
+    min-height: 480px;
+  }
+  .qm-logo {
+    width: 150px;
+    height: 150px;
+  }
+}
+
