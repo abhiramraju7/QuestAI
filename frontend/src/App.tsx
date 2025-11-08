@@ -1,6 +1,10 @@
 /// <reference path="./types/react-shim.d.ts" />
 import React from "react";
 import { useMemo, useState } from "react";
+import Constellation, {
+  ConstellationActivity,
+  ConstellationUser,
+} from "./components/Constellation";
 import type { CSSProperties } from "react";
 import { fetchPlan } from "./lib/api";
 
@@ -262,6 +266,28 @@ export default function App() {
     [groupResult, SAMPLE_NODES]
   );
 
+  const constellationUsers: ConstellationUser[] = useMemo(
+    () =>
+      PEOPLE.map((p) => ({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        hobbies: p.tags,
+      })),
+    []
+  );
+
+  const constellationActivities: ConstellationActivity[] = useMemo(
+    () =>
+      nodes.map((c, i) => ({
+        id: `${i}-${c.title}`,
+        title: c.title,
+        vibe: c.vibe,
+        reasons: c.reasons,
+      })),
+    [nodes]
+  );
+
   function colorFromScore(score: number): string {
     const clamped = Math.max(0, Math.min(1, score));
     // interpolate hue: 30 (orange) -> 265 (violet) by score
@@ -300,32 +326,23 @@ export default function App() {
       </header>
 
       <main className="qm-layout">
-        <section className="qm-hub qm-constellation">
+        <section className="qm-hub">
           <div className="qm-center">
             <div className={`qm-logo ${loading ? "qm-logo--pulse" : ""}`}>Quest Mode</div>
             <button className="primary qm-group-btn" onClick={generateForGroup} disabled={loading}>
               {loading ? "Computing alignment..." : "Generate group plan"}
             </button>
           </div>
-
-          {nodes.map((card: PlanCard, idx: number) => {
-            const halo = colorFromScore(card.group_score);
-            const vars = orbitVars(idx, nodes.length);
-            return (
-              <div key={card.title} className="qm-orbit" style={vars}>
-                <button
-                  type="button"
-                  className="qm-star"
-                  style={{ ["--halo" as any]: halo } as CSSProperties}
-                  onClick={() => onNodeClick(card)}
-                  title={card.title}
-                >
-                  <span className="qm-star-title">{card.title}</span>
-                  <span className="qm-star-vibe">{card.vibe}</span>
-                </button>
-              </div>
-            );
-          })}
+          <Constellation
+            users={constellationUsers}
+            activities={constellationActivities}
+            onSelect={(a) => {
+              // find matching card to show detail
+              const card = nodes.find((c) => c.title === a.title) || nodes[0];
+              onNodeClick(card);
+            }}
+            height={560}
+          />
         </section>
 
         <section className="qm-panel">

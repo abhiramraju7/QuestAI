@@ -5,6 +5,8 @@ declare module "react" {
   export type CSSProperties = any;
   export function useState<T = any>(initial?: T): [T, (v: T | ((prev: T) => T)) => void];
   export function useMemo<T = any>(factory: () => T, deps: any[]): T;
+  export function useEffect(effect: () => void | (() => void), deps?: any[]): void;
+  export function useRef<T = any>(initial?: T | null): { current: T | null };
   const ReactDefault: any;
   export default ReactDefault;
 }
