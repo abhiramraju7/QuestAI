@@ -18,6 +18,7 @@ declare module "react" {
   export function useEffect(effect: (...args: any[]) => any, deps?: any[]): void;
   export function useMemo<T = any>(factory: () => T, deps?: any[]): T;
   export function useCallback<T extends (...args: any[]) => any>(cb: T, deps?: any[]): T;
+  export function useRef<T = any>(initial?: T | null): { current: T | null };
   const React: any;
   export default React;
 }

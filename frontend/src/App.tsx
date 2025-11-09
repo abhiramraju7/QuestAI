@@ -258,11 +258,11 @@ export default function App() {
         onSubmit={() => void performEventSearch()}
       />
       {activeNav === "Discover" && (
-        <CenterRecommendations
+        <HorizontalPicker
           score={displayScore}
           friends={friendObjects.map((f) => f.name)}
-          events={events}
-          activeId={activeEventId}
+          events={events.slice(0, 15)}
+          onGenerate={() => onSubmit as any}
           onEventClick={handleEventCardClick}
           loading={eventsLoading || loading}
         />
@@ -486,6 +486,136 @@ function CenterRecommendations({
           );
         })}
       </div>
+      {loading && <div className="yumi-loading">Finalizing recommendations</div>}
+    </section>
+  );
+}
+
+function HorizontalPicker({
+  score,
+  friends,
+  events,
+  onGenerate,
+  onEventClick,
+  loading,
+}: {
+  score: number;
+  friends: string[];
+  events: EventItem[];
+  onGenerate: (e: FormEvent<HTMLFormElement>) => void;
+  onEventClick: (e: EventItem) => void;
+  loading: boolean;
+}) {
+  const containerRef = React.useRef(null as HTMLDivElement | null);
+  const trackRef = React.useRef(null as HTMLDivElement | null);
+  const [paused, setPaused] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const pickBest = useCallback(() => {
+    // Very simple interest overlap score using title + vibes/tags strings
+    const interestTerms = new Set<string>(
+      [
+        ...splitList("music, outdoors, creative, cozy, party, social"),
+      ].map((t) => t.toLowerCase())
+    );
+    let best: { id: string; score: number } | null = null;
+    events.forEach((ev) => {
+      const hay = [ev.title, ev.summary || "", ev.venue || "", (ev as any).vibes?.join(" ") || "", (ev as any).tags?.join(" ") || ""]
+        .join(" ")
+        .toLowerCase();
+      let s = 0;
+      interestTerms.forEach((t) => {
+        if (hay.includes(t)) s += 1;
+      });
+      if (!best || s > best.score) {
+        best = { id: ev.id, score: s };
+      }
+    });
+    const fallbackId = (events.map((e) => e.id)[0] as string | undefined) ?? null;
+    // @ts-ignore - shim environment may lose EventItem types; in real build React types resolve
+    return best ? best.id : fallbackId;
+  }, [events]);
+
+  const centerOn = useCallback((id: string) => {
+    if (!containerRef.current || !trackRef.current) return;
+    const container = containerRef.current.getBoundingClientRect();
+    const el = trackRef.current.querySelector(`[data-id="${id}"]`) as HTMLButtonElement | null;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const delta = rect.left + rect.width / 2 - (container.left + container.width / 2);
+    const current = getComputedStyle(trackRef.current).transform;
+    let currentX = 0;
+    if (current && current !== "none") {
+      const m = new DOMMatrix(current);
+      currentX = m.m41;
+    }
+    const targetX = currentX - delta;
+    trackRef.current.style.transition = "transform 1200ms cubic-bezier(.22,1,.36,1)";
+    trackRef.current.style.transform = `translateX(${targetX}px)`;
+  }, []);
+
+  function handleSpin() {
+    const id = pickBest();
+    if (!id) return;
+    setSelectedId(id);
+    setPaused(true);
+    window.setTimeout(() => {
+      centerOn(id);
+    }, 60);
+  }
+
+  return (
+    <section className="yumi-center">
+      <div className="friends-row">
+        {friends.map((name) => {
+          const initial = name.slice(0, 1).toUpperCase();
+          return (
+            <div key={name} className="friend-avatar">
+              <div className="friend-avatar__img">{initial}</div>
+              <div className="friend-avatar__name">{name}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="belt" ref={containerRef}>
+        <div
+          ref={trackRef}
+          className={`belt__track ${paused ? "is-paused" : ""}`}
+          style={{ ["--belt-speed" as any]: "40s" }}
+        >
+          {events.concat(events).map((e: EventItem, idx: number) => (
+            <button
+              key={`${e.id}-${idx}`}
+              data-id={e.id}
+              type="button"
+              className={`belt-card ${selectedId === e.id ? "is-selected" : ""}`}
+              onClick={() => onEventClick(e)}
+              title={e.title}
+            >
+              <div className="belt-card__thumb">
+                <span>{e.title.slice(0, 1)}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="orb">
+        <div className="orb__glow" />
+        <div className="orb__ring" />
+        <div className="orb__content">
+          <div className="orb__score">{score}%</div>
+          <div className="orb__label">Group Match</div>
+        </div>
+      </div>
+
+      <div className="picker-actions">
+        <button className="primary" type="button" onClick={handleSpin} disabled={loading}>
+          {loading ? "Curating..." : "Generate Plan"}
+        </button>
+      </div>
+
       {loading && <div className="yumi-loading">Finalizing recommendations</div>}
     </section>
   );
