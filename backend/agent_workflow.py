@@ -1,30 +1,34 @@
 import json
-import logging
+import os
 from typing import Any, Dict, List, Tuple
 
-from .adk_client import get_agent_client
 from .tools import tool_find_activities
 
-logger = logging.getLogger(__name__)
-
 try:
-    from google.genai import types  # type: ignore
+    import google.generativeai as genai  # type: ignore
 except ImportError:  # pragma: no cover
-    types = None  # type: ignore
+    genai = None  # type: ignore
 
 
-def _fallback_keywords(prompt: str, friends: Dict[str, Any]) -> List[str]:
-    """Simple keyword extraction when ADK is unavailable or fails."""
+_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+_GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+if genai and _GEMINI_KEY:
+    genai.configure(api_key=_GEMINI_KEY)
+
+
+def _collect_keywords(prompt: str, friends: Dict[str, Any]) -> List[str]:
     keywords: List[str] = []
     for part in prompt.replace("•", ",").split(","):
-        cleaned = part.strip()
-        if cleaned:
-            keywords.append(cleaned)
+        slot = part.strip()
+        if slot:
+            keywords.append(slot)
+
     for profile in friends.values():
-        likes = profile.get("likes") if isinstance(profile, dict) else None
-        if isinstance(likes, list):
-            keywords.extend(str(item) for item in likes if item)
-    # deduplicate while preserving order
+        if isinstance(profile, dict):
+            likes = profile.get("likes")
+            if isinstance(likes, list):
+                keywords.extend(str(item) for item in likes if item)
+
     seen = set()
     unique: List[str] = []
     for kw in keywords:
@@ -35,76 +39,68 @@ def _fallback_keywords(prompt: str, friends: Dict[str, Any]) -> List[str]:
     return unique[:12]
 
 
-def _parse_agent_payload(text: str) -> Tuple[str, List[str]]:
-    """
-    Tries to parse JSON returned by the agent. Falls back to raw text summary and
-    keyword extraction.
-    """
-    try:
-        data = json.loads(text)
-        summary = str(data.get("summary") or data.get("plan") or "")
-        keywords = data.get("keywords") or data.get("queries") or []
-        if isinstance(keywords, str):
-            keywords = [keywords]
-        keywords = [str(item) for item in keywords if item]
-        return summary, keywords
-    except json.JSONDecodeError:
-        return text.strip(), []
-
-
-def _call_adk(prompt: str, friends: Dict[str, Any]) -> Tuple[str, List[str]]:
-    client = get_agent_client()
-    if not client or types is None:
-        raise RuntimeError("ADK client unavailable")
+def _call_gemini(prompt: str, friends: Dict[str, Any]) -> Tuple[str, List[str]]:
+    if not (genai and _GEMINI_KEY):
+        raise RuntimeError("Gemini API key not configured")
 
     friend_context = json.dumps(friends, indent=2)
     instructions = (
-        "You are Challo, an AI trip-planning concierge. "
-        "Blend friend interests, infer missing details, and respond with JSON "
-        "containing 'summary' (string) and 'keywords' (array of 3-6 short terms) "
-        "related to activities the group would enjoy."
+        "You are Challo, an AI concierge planning group activities. "
+        "Given a natural language prompt and friend profiles, reply with JSON like "
+        '{"summary":"one or two sentences","keywords":["short","terms","here"]}. '
+        "Focus keywords on the types of venues or experiences to search."
     )
 
-    session = client.start_session(
-        context=types.SessionContext(
-            instructions=instructions,
-        )
-    )
-
-    response = client.update_session(
-        session=session,
-        messages=[
-            types.Message(author="system", content=f"Friend profiles:\n{friend_context}"),
-            types.Message(author="user", content=prompt),
+    model = genai.GenerativeModel(_GEMINI_MODEL)
+    response = model.generate_content(
+        [
+            instructions,
+            f"Friend profiles:\n{friend_context}",
+            f"User prompt: {prompt}",
         ],
+        generation_config={"temperature": 0.4, "response_mime_type": "application/json"},
     )
 
-    result_parts: List[str] = []
-    if response.result_message:
-        for part in getattr(response.result_message, "parts", []):
-            text = getattr(part, "text", None)
-            if text:
-                result_parts.append(text)
-        if not result_parts and hasattr(response.result_message, "content"):
-            result_parts.append(str(response.result_message.content))
+    text = getattr(response, "text", None)
+    if not text:
+        all_parts = []
+        for cand in getattr(response, "candidates", []) or []:
+            for part in getattr(cand, "content", {}).parts or []:
+                if part.text:
+                    all_parts.append(part.text)
+        if not all_parts:
+            raise RuntimeError("Gemini returned no text")
+        text = "\n".join(all_parts)
 
-    if not result_parts:
-        raise RuntimeError("ADK produced no content")
-
-    combined = "\n".join(result_parts)
-    return _parse_agent_payload(combined)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Gemini returned non-JSON content: {text}") from exc
+    summary = str(data.get("summary") or "")
+    keywords = data.get("keywords") or []
+    if isinstance(keywords, str):
+        keywords = [keywords]
+    keywords = [str(item) for item in keywords if item]
+    return summary, keywords
 
 
 def agent_discover(prompt: str, location: str | None, budget_cap: float | None, friends: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        summary, keywords = _call_adk(prompt, friends)
-    except Exception as exc:  # pragma: no cover - ensure graceful degradation
-        logger.warning("Falling back to heuristic planner: %s", exc)
+        summary, keywords = _call_gemini(prompt, friends)
+    except Exception:
         summary = ""
-        keywords = _fallback_keywords(prompt, friends)
+        keywords = _collect_keywords(prompt, friends)
 
     if not keywords:
-        keywords = _fallback_keywords(prompt, friends)
+        keywords = _collect_keywords(prompt, friends)
+
+    friend_summary = json.dumps(friends, indent=2)
+    if not summary:
+        summary = (
+            "Blending your crew’s favorites:\n"
+            f"{friend_summary}\n"
+            f"Here are some ideas matching: {', '.join(keywords) or prompt}."
+        )
 
     filters: Dict[str, Any] = {
         "q": prompt,
@@ -114,11 +110,6 @@ def agent_discover(prompt: str, location: str | None, budget_cap: float | None, 
         "distance_cap": 10,
     }
 
-    raw = tool_find_activities(filters)
-
-    return {
-        "summary": summary,
-        "keywords": keywords,
-        "activities": raw,
-    }
+    activities = tool_find_activities(filters)
+    return {"summary": summary, "keywords": keywords, "activities": activities}
 

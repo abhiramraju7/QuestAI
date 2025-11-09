@@ -1,5 +1,8 @@
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { ActivityResult, invokeAgent, searchActivities } from "./lib/api";
+import { Hero } from "./components/Hero";
+import { ActivityPanel } from "./components/ActivityPanel";
+import { MapPanel } from "./components/MapPanel";
 
 type FormState = {
   query_text: string;
@@ -94,6 +97,7 @@ export default function App() {
   }, [activities, selectedActivity]);
 
   const topActivities = useMemo(() => activities.slice(0, 40), [activities]);
+  const orbitActivities = useMemo(() => activities.slice(0, 8), [activities]);
 
   function handleSuggestionClick(text: string) {
     setForm((prev) => ({ ...prev, query_text: text }));
@@ -108,244 +112,36 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="hero">
-        <div className="hero__badge">Challo</div>
-        <div className="hero__content">
-          <h1>Plan the next great hang.</h1>
-          <p>
-            Describe the vibe, pick a city, and we’ll surface venues, experiences, and nightlife to match the energy.
-          </p>
-        </div>
-
-        <form className="search-card" onSubmit={handleSubmit}>
-          <label className="field">
-            <span>What are you in the mood for?</span>
-            <textarea
-              value={form.query_text}
-              onChange={(event) => setForm((prev) => ({ ...prev, query_text: event.target.value }))}
-              rows={3}
-              placeholder="e.g. Neon-lit arcade with DJ sets"
-              required
-            />
-          </label>
-
-          <div className="search-card__grid">
-            <label className="field">
-              <span>City or neighborhood</span>
-              <input
-                value={form.location ?? ""}
-                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                placeholder="Boston, MA"
-              />
-            </label>
-
-            <label className="field">
-              <span>Budget cap (optional)</span>
-              <input
-                type="number"
-                min="0"
-                value={form.budget_cap ?? ""}
-                onChange={(event) => setForm((prev) => ({ ...prev, budget_cap: event.target.value }))}
-                placeholder="40"
-              />
-            </label>
-          </div>
-
-          <div className="search-card__actions">
-            <button type="submit" className="btn btn--primary" disabled={loading}>
-              {loading ? "Searching..." : "Discover spots"}
-            </button>
-            <button type="button" className="btn btn--ghost" onClick={handleReset}>
-              Reset
-            </button>
-          </div>
-
-          <div className="suggestions">
-            {SUGGESTIONS.map((suggestion) => (
-              <button
-                type="button"
-                key={suggestion}
-                className="suggestion-chip"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </form>
-      </header>
-
-      <main className="app-grid">
-        <section className="results-pane">
-          <div className="results-header">
-            <div>
-              <h2>Possible hangouts</h2>
-              <p className="muted">
-                {loading
-                  ? "Fetching your recommendations…"
-                  : hasSearched
-                  ? "Tap a card to preview it on the map."
-                  : "Search to see curated places near you."}
-              </p>
-            </div>
-            {activities.length > 0 && <span className="results-count">{activities.length}</span>}
-          </div>
-
-          {agentSummary && (
-            <div className="ai-summary">
-              <div className="ai-summary__label">AI plan</div>
-              <p>{agentSummary}</p>
-              {agentKeywords.length > 0 && (
-                <div className="ai-summary__keywords">
-                  {agentKeywords.map((keyword) => (
-                    <span key={keyword} className="tag-chip">
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && <div className="alert alert--error">{error}</div>}
-          {!error && !loading && hasSearched && activities.length === 0 && (
-            <div className="empty-state">
-              <p>No matches yet. Try broadening the vibe or using a nearby neighborhood.</p>
-            </div>
-          )}
-
-          <div className="results-list">
-            {topActivities.map((activity) => (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                isActive={selectedActivity?.id === activity.id}
-                onSelect={() => setSelectedActivity(activity)}
-              />
-            ))}
-            {!loading && !hasSearched && (
-              <div className="placeholder-card">
-                <p>Need inspiration? Try “late-night karaoke in Chinatown” or “sunset boat ride with cocktails”.</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <aside className="map-pane">
-          {selectedActivity ? (
-            <MapPanel activity={selectedActivity} />
-          ) : (
-            <div className="map-placeholder">
-              <h3>Select a spot</h3>
-              <p>We’ll drop it on the map with next steps once you choose a card.</p>
-            </div>
-          )}
-        </aside>
-      </main>
-    </div>
-  );
-}
-
-function ActivityCard({
-  activity,
-  isActive,
-  onSelect,
-}: {
-  activity: ActivityResult;
-  isActive: boolean;
-  onSelect: () => void;
-}) {
-  const metaParts: string[] = [];
-  if (activity.address) {
-    metaParts.push(activity.address);
-  }
-  if (activity.price) {
-    metaParts.push(activity.price);
-  }
-
-    return (
-    <button type="button" className={`activity-card ${isActive ? "is-active" : ""}`} onClick={onSelect}>
-      {activity.image_url ? (
-        <div
-          className="activity-card__media"
-          style={{ backgroundImage: `linear-gradient(180deg,rgba(15,23,42,0) 40%,rgba(15,23,42,0.65)),url(${activity.image_url})` }}
+    <div className="page">
+      <div className="page__inner">
+        <Hero
+          form={form}
+          loading={loading}
+          agentSummary={agentSummary}
+          agentKeywords={agentKeywords}
+          suggestions={SUGGESTIONS}
+          orbitActivities={orbitActivities}
+          selectedActivityId={selectedActivity?.id ?? null}
+          onSubmit={handleSubmit}
+          onFormChange={(field, value) => setForm((prev) => ({ ...prev, [field]: value }))}
+          onSuggestion={handleSuggestionClick}
+          onReset={handleReset}
+          onSelectActivity={(activity) => setSelectedActivity(activity)}
         />
-      ) : (
-        <div className="activity-card__media activity-card__media--fallback">{activity.title.slice(0, 1)}</div>
-      )}
 
-      <div className="activity-card__body">
-        <div className="activity-card__head">
-          <h3>{activity.title}</h3>
-        </div>
-        {metaParts.length > 0 && <p className="activity-card__meta">{metaParts.join(" · ")}</p>}
-        {activity.summary && <p className="activity-card__summary">{activity.summary}</p>}
+        <main className="panels">
+          <ActivityPanel
+            activities={topActivities}
+            loading={loading}
+            hasSearched={hasSearched}
+            error={error}
+            selectedActivityId={selectedActivity?.id ?? null}
+            onSelect={(activity) => setSelectedActivity(activity)}
+          />
 
-        <div className="activity-card__links">
-          {activity.booking_url && (
-            <a href={activity.booking_url} target="_blank" rel="noreferrer">
-              Details
-            </a>
-          )}
-          {activity.maps_url && (
-            <a href={activity.maps_url} target="_blank" rel="noreferrer">
-              Open in Maps
-            </a>
-          )}
-        </div>
+          <MapPanel activity={selectedActivity} />
+        </main>
       </div>
-    </button>
-  );
-}
-
-function MapPanel({ activity }: { activity: ActivityResult }) {
-  const mapSrc =
-    activity.lat != null && activity.lng != null
-      ? `https://maps.google.com/maps?q=${activity.lat},${activity.lng}&z=15&output=embed`
-      : null;
-
-  return (
-    <div className="map-card">
-      <div className="map-card__header">
-        <div>
-          <h3>{activity.title}</h3>
-          {activity.address && <p>{activity.address}</p>}
-        </div>
-        <div className="map-card__actions">
-          {activity.booking_url && (
-            <a className="btn btn--outline" href={activity.booking_url} target="_blank" rel="noreferrer">
-              View details
-            </a>
-          )}
-          {activity.maps_url && (
-            <a className="btn btn--primary" href={activity.maps_url} target="_blank" rel="noreferrer">
-              Directions
-            </a>
-          )}
-        </div>
-      </div>
-
-      {mapSrc ? (
-        <iframe title="Selected activity location" src={mapSrc} className="map-card__frame" allowFullScreen loading="lazy" />
-      ) : (
-        <div className="map-card__fallback">
-          <p>Map preview unavailable. Use the links above for directions.</p>
-        </div>
-      )}
-
-      {activity.tags?.length ? (
-        <div className="tag-cloud">
-          {activity.tags.slice(0, 6).map((tag) => {
-            const label = tag.replace(/_/g, " ");
-            return (
-              <span key={tag} className="tag-chip">
-                {label}
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
     </div>
   );
 }
