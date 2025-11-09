@@ -18,6 +18,41 @@ from backend.mock_events import get_tool_candidates
 
 logger = logging.getLogger(__name__)
 
+RECREATION_KEYWORDS = [
+    "arcade",
+    "amusement park",
+    "trampoline park",
+    "bowling",
+    "escape room",
+    "ice skating",
+    "roller skating",
+    "go kart",
+    "laser tag",
+    "mini golf",
+    "climbing gym",
+    "indoor skydiving",
+    "karaoke",
+    "board game cafe",
+    "comedy club",
+    "live music",
+    "concert",
+    "festival",
+    "sports bar",
+    "sports complex",
+    "recreation center",
+    "outdoor adventure",
+    "museum",
+    "art gallery",
+    "theater",
+    "performance venue",
+    "dance club",
+    "pool hall",
+    "virtual reality arcade",
+    "paintball",
+    "water park",
+    "arcade bar",
+]
+
 # === Data-access contracts Friend 2 will implement for real ===
 def _fetch_profile_from_supabase(user_id: str) -> Optional[Dict[str, Any]]:
     client: Optional[Client] = safe_get_supabase_client()
@@ -233,7 +268,8 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
         keyword_parts.append(str(query["vibe"]))
     keyword_parts.extend(query.get("likes") or [])
     keyword_parts.extend(query.get("tags") or [])
-    keyword = " ".join(keyword_parts) or "activities"
+    keyword_parts.extend(RECREATION_KEYWORDS)
+    keyword = " ".join(keyword_parts) if keyword_parts else "fun activities"
 
     price_level_cap = _budget_cap_to_price_level(query.get("budget_cap"))
 
@@ -292,11 +328,17 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
             if level is not None and level > price_level_cap:
                 continue
 
+        summary = place.get("editorial_summary", {}).get("overview")
+        if not summary:
+            business_status = place.get("business_status")
+            if business_status and business_status.upper() != "OPERATIONAL":
+                summary = business_status.title()
+
         results.append(
             {
                 "title": place.get("name"),
                 "vibe": query.get("vibe") or (place.get("types") or [None])[0],
-                "price": price_band,
+                "price": price_band if price_band != "unknown" else None,
                 "address": place.get("vicinity") or place.get("formatted_address"),
                 "lat": geometry.get("lat"),
                 "lng": geometry.get("lng"),
@@ -307,9 +349,7 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "source": "google_places",
                 "image_url": image_url,
                 "tags": place.get("types") or [],
-                "summary": place.get("editorial_summary", {}).get("overview")
-                or place.get("business_status")
-                or f"Discover {place.get('name')} via Google Places.",
+                "summary": summary,
             }
         )
     return results

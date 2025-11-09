@@ -32,7 +32,9 @@ export default function App() {
         budget_cap: Number.isFinite(budget) ? budget : undefined,
       });
       setActivities(results);
-      setSelectedActivity(results[0] ?? null);
+      setSelectedActivity((prev) =>
+        prev && results.some((item) => item.id === prev.id) ? prev : null
+      );
       setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -40,12 +42,14 @@ export default function App() {
       setSelectedActivity(null);
       setHasSearched(true);
   useEffect(() => {
-    if (activities.length > 0) {
-      setSelectedActivity((prev) => prev ?? activities[0]);
-    } else {
+    if (!selectedActivity) {
+      return;
+    }
+    const stillPresent = activities.some((activity) => activity.id === selectedActivity.id);
+    if (!stillPresent) {
       setSelectedActivity(null);
     }
-  }, [activities]);
+  }, [activities, selectedActivity]);
 
     } finally {
       setLoading(false);
@@ -56,7 +60,7 @@ export default function App() {
     <div className="page">
       <header className="page__header">
         <h1>Challo Activity Finder</h1>
-        <p>Give us a vibe, city, or budget and we’ll pull live matches from Eventbrite and Google Places.</p>
+        <p>Tell us what kind of outing you want and we’ll surface fun spots around town.</p>
       </header>
 
       <main className="page__main">
@@ -113,7 +117,7 @@ export default function App() {
             <p className="muted">No activities matched. Try adjusting your search.</p>
           )}
           {!error && !loading && !hasSearched && (
-            <p className="muted">Run a search to see Eventbrite and Google Places recommendations.</p>
+            <p className="muted">Run a search to see ideas for things to do nearby.</p>
           )}
 
           <ul className="results">
@@ -168,32 +172,37 @@ function ActivityCard({
   isActive: boolean;
   onSelect: () => void;
 }) {
+  const metaParts: string[] = [];
+  if (activity.address) {
+    metaParts.push(activity.address);
+  }
+  if (activity.price) {
+    metaParts.push(activity.price);
+  }
+
   return (
     <li>
       <button type="button" className={`result-card ${isActive ? "result-card--active" : ""}`} onClick={onSelect}>
       <header className="result-card__head">
         <h3>{activity.title}</h3>
-        <span className={`tag tag--${activity.source}`}>{activity.source}</span>
       </header>
 
-      <p className="result-card__meta">
-        {[activity.price ?? "Price unknown", activity.address ?? "Location TBD"].filter(Boolean).join(" · ")}
-      </p>
+        {metaParts.length > 0 && <p className="result-card__meta">{metaParts.join(" · ")}</p>}
 
-      {activity.summary && <p className="result-card__summary">{activity.summary}</p>}
+        {activity.summary && <p className="result-card__summary">{activity.summary}</p>}
 
-      <div className="result-card__links">
-        {activity.booking_url && (
-          <a href={activity.booking_url} target="_blank" rel="noreferrer">
-            Details
-          </a>
-        )}
-        {activity.maps_url && (
-          <a href={activity.maps_url} target="_blank" rel="noreferrer">
-            Map
-          </a>
-        )}
-      </div>
+        <div className="result-card__links">
+          {activity.booking_url && (
+            <a href={activity.booking_url} target="_blank" rel="noreferrer">
+              Details
+            </a>
+          )}
+          {activity.maps_url && (
+            <a href={activity.maps_url} target="_blank" rel="noreferrer">
+              Map
+            </a>
+          )}
+        </div>
       </button>
     </li>
   );
