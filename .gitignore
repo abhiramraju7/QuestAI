@@ -6,3 +6,30 @@ frontend/node_modules/
 frontend/dist/
 *.env
 
+
+# Exclude personal directories
+Applications/
+Desktop/
+Documents/
+Downloads/
+Library/
+Movies/
+Music/
+Pictures/
+Public/
+.dev/
+.Trash/
+.config/
+.cursor/
+.ssh/
+.swiftpm/
+.vscode/
+.npm/
+.zsh_history
+.zsh_sessions/
+.modal.toml
+.lesshst
+.CFUserTextEncoding
+.dev/
+.gitconfig
+dev/

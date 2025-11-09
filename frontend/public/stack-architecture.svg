@@ -23,7 +23,7 @@
   </defs>
 
   <!-- Title -->
-  <text x="40" y="48" class="title">Vivi Tech Stack and Agent Flow</text>
+  <text x="40" y="48" class="title">Challo Tech Stack and Agent Flow</text>
   <text x="40" y="72" class="small">Full-stack: Vite + React (Netlify) → FastAPI (Railway) → Multi-agent planning with tools and optional LLMs</text>
 
   <!-- Frontend Panel -->

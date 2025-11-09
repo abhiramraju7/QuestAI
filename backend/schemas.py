@@ -21,6 +21,15 @@ class GroupRequest(BaseModel):
     custom_likes: List[str] = Field(default_factory=list)
     custom_tags: List[str] = Field(default_factory=list)
 
+class FriendOverride(BaseModel):
+    user_id: str
+    display_name: Optional[str] = None
+    likes: List[str] = Field(default_factory=list)
+    vibes: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
+    budget_max: Optional[float] = None
+    distance_km_max: Optional[float] = None
+
 class PlanCard(BaseModel):
     title: str
     subtitle: Optional[str] = None

@@ -371,115 +371,129 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header>
-        <span className="brand">Vivi</span>
-        <p className="tagline">
-          The agentic social activity network. You bring the vibe. Your friends bring the time. AI
-          orchestrates the plan.
-        </p>
+    <div className="map-layout">
+      <div className="map-root">
+        {hasMapboxToken ? (
+          <div ref={mapContainerRef} className="mapbox-sheet" />
+        ) : (
+          <div className="map-fallback">
+            <div className="map-fallback__card">
+              <h2>Add your Mapbox token</h2>
+              <p>
+                Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> to enable the live map. Events still render
+                in the panels.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <header className="top-bar">
+        <span className="logo">Challo</span>
+        <div className="top-bar__meta">
+          <span>Agent graph</span>
+          <span>Eventbrite</span>
+          <span>Google Places</span>
+        </div>
       </header>
 
-      <main>
-        <section className="planner-panel">
-          <form onSubmit={onSubmit}>
+      <section className="control-stack">
+        <form className="query-card" onSubmit={onSubmit}>
+          <label className="query-card__prompt">
+            <span>What do you feel like?</span>
+            <textarea
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              rows={2}
+              placeholder="Tonight we're broke but want outdoorsy music near Cambridge."
+            />
+          </label>
+
+          <div className="query-grid">
             <label>
-              Mood Input
-              <textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="What's the vibe?"
-                rows={4}
+              Location
+              <input
+                value={locationHint}
+                onChange={(e) => setLocationHint(e.target.value)}
+                placeholder="Cambridge, MA"
               />
             </label>
-
-            <div className="inputs-grid">
-              <label>
-                Where?
-                <input
-                  value={locationHint}
-                  onChange={(e) => setLocationHint(e.target.value)}
-                  placeholder="Neighborhood or city"
-                />
-              </label>
-              <label>
-                When?
-                <input
-                  value={timeWindow}
-                  onChange={(e) => setTimeWindow(e.target.value)}
-                  placeholder="e.g. Tonight 6-9pm"
-                />
-              </label>
-            </div>
-
-            <div className="inputs-grid">
-              <label>
-                Optional vibe hint
-                <input
-                  value={vibeHint}
-                  onChange={(e) => setVibeHint(e.target.value)}
-                  placeholder="music, outdoors, romantic..."
-                />
-              </label>
-              <label>
-                Budget cap (USD)
-                <input
-                  value={budgetCap}
-                  onChange={(e) => setBudgetCap(e.target.value)}
-                  type="number"
-                  min="0"
-                  placeholder="20"
-                />
-              </label>
-              <label>
-                Distance max (km)
-                <input
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  type="number"
-                  min="0"
-                  placeholder="5"
-                />
-              </label>
-            </div>
-
             <label>
-              Custom likes (comma separated)
+              Time
+              <input
+                value={timeWindow}
+                onChange={(e) => setTimeWindow(e.target.value)}
+                placeholder="Tonight 5-9pm"
+              />
+            </label>
+          </div>
+
+ 		    <div className="query-grid">
+            <label>
+              Interests
               <input
                 value={customLikes}
                 onChange={(e) => setCustomLikes(e.target.value)}
-                placeholder="live music, cafe crawl, art pop-up"
+                placeholder="live music, sunset picnic"
               />
             </label>
-
             <label>
-              Tags or constraints (comma separated)
+              Tags
               <input
                 value={customTags}
                 onChange={(e) => setCustomTags(e.target.value)}
-                placeholder="outdoor, group-friendly, free"
+                placeholder="outdoor, group, evening"
               />
             </label>
+          </div>
 
-            <fieldset className="friends">
-              <legend>Tag friends to merge their vibes</legend>
-              <div className="chips">
-                {FRIENDS.map((friend) => {
-                  const active = selectedFriends.includes(friend.id);
-                  return (
-                    <button
-                      key={friend.id}
-                      type="button"
-                      className={`chip ${active ? "chip--active" : ""}`}
-                      onClick={() => toggleFriend(friend.id)}
-                    >
-                      <span>{friend.name}</span>
-                      <small>{friend.tags.join(" · ")}</small>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
+          <div className="chip-row">
+            <label>
+              Vibe
+              <input
+                value={vibeHint}
+                onChange={(e) => setVibeHint(e.target.value)}
+                placeholder="music"
+              />
+            </label>
+            <label>
+              Budget $
+              <input
+                value={budgetCap}
+                onChange={(e) => setBudgetCap(e.target.value)}
+                type="number"
+                min="0"
+              />
+            </label>
+            <label>
+              Radius km
+              <input
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                type="number"
+                min="0"
+              />
+            </label>
+          </div>
+
+          <details className="query-advanced">
+            <summary>Friends & providers</summary>
+            <div className="friend-chips">
+              {FRIENDS.map((friend) => {
+                const active = selectedFriends.includes(friend.id);
+                return (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    className={`friend-chip ${active ? "friend-chip--active" : ""}`}
+                    onClick={() => toggleFriend(friend.id)}
+                  >
+                    <span>{friend.name}</span>
+                    <small>{friend.tags.join(" · ")}</small>
+                  </button>
+                );
+              })}
+            </div>
 
             {selectedFriends.map((friendId) => {
               const friend = FRIENDS.find((f) => f.id === friendId);
@@ -491,11 +505,14 @@ export default function App() {
                 distance: "",
               };
               return (
-                <div key={friendId} className="friend-overrides">
-                  <h3>{friend?.name ?? friendId}</h3>
-                  <div className="inputs-grid">
+                <div key={friendId} className="friend-card">
+                  <header>
+                    <span>{friend?.name ?? friendId}</span>
+                    <small>{friend?.tags.join(" / ")}</small>
+                  </header>
+                  <div className="query-grid">
                     <label>
-                      Likes / activities
+                      Likes
                       <input
                         value={inputs.likes}
                         onChange={(e) =>
@@ -504,11 +521,11 @@ export default function App() {
                             [friendId]: { ...inputs, likes: e.target.value },
                           }))
                         }
-                        placeholder="live music, pottery class..."
+                        placeholder="live music"
                       />
                     </label>
                     <label>
-                      Preferred vibes
+                      Vibes
                       <input
                         value={inputs.vibes}
                         onChange={(e) =>
@@ -517,13 +534,13 @@ export default function App() {
                             [friendId]: { ...inputs, vibes: e.target.value },
                           }))
                         }
-                        placeholder="music, adventure..."
+                        placeholder="creative"
                       />
                     </label>
                   </div>
-                  <div className="inputs-grid">
+                  <div className="query-grid">
                     <label>
-                      Tags / constraints
+                      Tags
                       <input
                         value={inputs.tags}
                         onChange={(e) =>
@@ -532,11 +549,11 @@ export default function App() {
                             [friendId]: { ...inputs, tags: e.target.value },
                           }))
                         }
-                        placeholder="nightlife, outdoor..."
+                        placeholder="outdoor"
                       />
                     </label>
                     <label>
-                      Budget max (USD)
+                      Budget $
                       <input
                         type="number"
                         min="0"
@@ -547,11 +564,10 @@ export default function App() {
                             [friendId]: { ...inputs, budget: e.target.value },
                           }))
                         }
-                        placeholder="25"
                       />
                     </label>
                     <label>
-                      Distance max (km)
+                      Radius km
                       <input
                         type="number"
                         min="0"
@@ -562,7 +578,6 @@ export default function App() {
                             [friendId]: { ...inputs, distance: e.target.value },
                           }))
                         }
-                        placeholder="5"
                       />
                     </label>
                   </div>
@@ -570,288 +585,131 @@ export default function App() {
               );
             })}
 
+            <label className="provider-select">
+              Provider
+              <select
+                value={eventProvider}
+                onChange={(e) => setEventProvider(e.target.value as EventProviderOption)}
+              >
+                <option value="all">Eventbrite + Google Places</option>
+                <option value="eventbrite">Eventbrite only</option>
+                <option value="google_places">Google Places only</option>
+              </select>
+            </label>
+          </details>
+
+          <div className="query-actions">
             <button className="primary" type="submit" disabled={loading}>
-              {loading ? "Orchestrating..." : "Spin up a plan"}
+              {loading ? "Finding matches..." : "Show events"}
             </button>
-          </form>
-          <aside className="concept">
-            <h2>Agent Graph</h2>
-            <p>
-              Vivi listens to your mood, retrieves everyone’s preferences, merges the vibes, scouts
-              the city, and drafts a ready-to-book plan card — all in seconds.
-            </p>
-            <ul>
-              <li>
-                <strong>Listener</strong> parses emotion + intent.
-              </li>
-              <li>
-                <strong>Profile</strong> maps taste graphs.
-              </li>
-              <li>
-                <strong>Merge</strong> finds the overlap.
-              </li>
-              <li>
-                <strong>Explorer</strong> combs APIs for matches.
-              </li>
-              <li>
-                <strong>Writer</strong> crafts vibe cards.
-              </li>
-              <li>
-                <strong>Scheduler</strong> syncs the squad.
-              </li>
-            </ul>
-          </aside>
-        </section>
+            {error && <div className="inline-error">{error}</div>}
+          </div>
+        </form>
 
-        <section className="results-panel">
-          {error && <div className="error">{error}</div>}
-          {!loading && !error && !result && (
-            <p className="placeholder">Drop a vibe above to see Vivi’s picks.</p>
+        <div className="result-card">
+          {loading && <p className="placeholder">Synthesizing picks...</p>}
+          {!loading && !result && !error && (
+            <p className="placeholder">Enter a mood and interests to surface events on the map.</p>
           )}
-
-          {loading && <p className="placeholder">Synthesizing mood graph...</p>}
-
           {result && (
             <>
-              <div className="summary">
-                <div>
-                  <h2>Top Picks for “{result.query_normalized}”</h2>
-                  {(result.merged_vibe || result.energy_profile) && (
-                    <p>
-                      {result.merged_vibe && (
-                        <>
-                          Shared vibe: <span className="badge">{result.merged_vibe}</span>{" "}
-                        </>
-                      )}
-                      {result.energy_profile && (
-                        <>
-                          Energy:{" "}
-                          <span className="badge badge--muted">{result.energy_profile}</span>
-                        </>
-                      )}
-                    </p>
+              <header className="result-card__header">
+                <h2>{result.query_normalized}</h2>
+                <div className="tag-chip-row">
+                  {result.merged_vibe && <span className="tag-chip">{result.merged_vibe}</span>}
+                  {result.energy_profile && (
+                    <span className="tag-chip tag-chip--muted">{result.energy_profile}</span>
                   )}
                 </div>
-                <div className="log">
-                  {result.action_log.map((entry, idx) => (
-                    <span key={idx}>{entry}</span>
-                  ))}
-                </div>
-              </div>
-              {result.candidates.length === 0 && (
-                <div className="empty-state">
-                  <h3>No live matches yet</h3>
-                  <p>
-                    Vivi called Google Places and Eventbrite but they didn't return any hits for the
-                    current settings. Try widening the distance, budget, or tweak the vibe keywords.
-                  </p>
-                </div>
-              )}
-              {lastContext && (
-                <div className="constraints-card">
-                  <h3>Planner inputs</h3>
-                  <div className="constraint-grid">
-                    <span>
-                      <strong>Where:</strong> {lastContext.location}
-                    </span>
-                    <span>
-                      <strong>When:</strong> {lastContext.time}
-                    </span>
-                    {lastContext.vibeHint && (
-                      <span>
-                        <strong>Vibe hint:</strong> {lastContext.vibeHint}
-                      </span>
-                    )}
-                    {lastContext.budget !== undefined && (
-                      <span>
-                        <strong>Budget ≤</strong> ${lastContext.budget}
-                      </span>
-                    )}
-                    {lastContext.distance !== undefined && (
-                      <span>
-                        <strong>Radius ≤</strong> {lastContext.distance} km
-                      </span>
-                    )}
-                    {lastContext.likes.length > 0 && (
-                      <span className="list-line">
-                        <strong>Likes:</strong> {lastContext.likes.join(", ")}
-                      </span>
-                    )}
-                    {lastContext.tags.length > 0 && (
-                      <span className="list-line">
-                        <strong>Tags:</strong> {lastContext.tags.join(", ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="cards-grid">
-                {result.candidates.map((card) => (
-                  <article key={card.title} className="plan-card">
-                    <header>
+              </header>
+              {result.candidates.length === 0 ? (
+                <p className="placeholder">
+                  No live matches. Try widening the radius or tweaking your keywords.
+                </p>
+              ) : (
+                <ul className="result-list">
+                  {result.candidates.map((card) => (
+                    <li key={card.title} className="result-list__item">
                       <div>
-                        <h3>{card.title}</h3>
-                        {card.address && <p className="address">{card.address}</p>}
+                        <strong>{card.title}</strong>
+                        {card.address && <span>{card.address}</span>}
                       </div>
-                      {card.vibe && (
-                        <span
-                          className="vibe-pill"
-                          style={{
-                            backgroundColor:
-                              vibePalette[card.vibe.toLowerCase()] ?? "#CBD5F5",
-                          }}
-                        >
-                          {card.vibe}
-                        </span>
-                      )}
-                    </header>
-                    <p className="meta">
-                      {card.price ? `Price: ${card.price}` : "Price: —"} ·{" "}
-                      {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
-                      <span className="source-pill">{card.source}</span>
-                    </p>
-                    {card.energy && <p className="meta">Energy match: {card.energy}</p>}
-                    {card.time && <p className="meta">Suggested time: {card.time}</p>}
-                    {card.summary && <p className="summary">{card.summary}</p>}
-                    <ul className="reason-list">
-                      {card.reasons.map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
-                    </ul>
-                    <footer>
-                      <span className="score">Score {Math.round(card.group_score * 100)}%</span>
-                      <div className="links">
-                        {card.booking_url && (
-                          <a href={card.booking_url} target="_blank" rel="noreferrer">
-                            Event Link
-                          </a>
-                        )}
-                        {card.maps_url && (
-                          <a href={card.maps_url} target="_blank" rel="noreferrer">
-                            Map
-                          </a>
-                        )}
-                      </div>
-                    </footer>
-                  </article>
-                ))}
-              </div>
+                      <p>
+                        {card.price ? card.price : "Price: —"} ·{" "}
+                        {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
+                        <span className="source-pill">{card.source}</span>
+                      </p>
+                      {card.summary && <p className="summary-text">{card.summary}</p>}
+                      <footer>
+                        <span className="score">{Math.round(card.group_score * 100)}%</span>
+                        <div className="links">
+                          {card.booking_url && (
+                            <a href={card.booking_url} target="_blank" rel="noreferrer">
+                              Event
+                            </a>
+                          )}
+                          {card.maps_url && (
+                            <a href={card.maps_url} target="_blank" rel="noreferrer">
+                              Map
+                            </a>
+                          )}
+                        </div>
+                      </footer>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
+        </div>
+      </section>
 
-          <div className="events-panel">
-            <div className="events-header">
+      <aside className="event-board">
+        <form className="event-board__form" onSubmit={handleEventSearchSubmit}>
+          <input
+            value={eventQuery}
+            onChange={(e) => setEventQuery(e.target.value)}
+            placeholder="Keyword"
+          />
+          <input
+            value={eventLocation}
+            onChange={(e) => setEventLocation(e.target.value)}
+            placeholder="Location"
+          />
+          <input
+            value={eventVibeFilter}
+            onChange={(e) => setEventVibeFilter(e.target.value)}
+            placeholder="Vibe"
+          />
+          <button type="submit" disabled={eventsLoading}>
+            {eventsLoading ? "..." : "Refresh"}
+          </button>
+        </form>
+
+        <div className="event-board__list">
+          {eventsError && <div className="inline-error">{eventsError}</div>}
+          {!eventsError && eventsLoading && <p className="placeholder">Loading events...</p>}
+          {!eventsError && !eventsLoading && events.length === 0 && (
+            <p className="placeholder">No events matched. Try new keywords.</p>
+          )}
+          {events.map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              className={`event-card ${activeEventId === event.id ? "event-card--active" : ""}`}
+              onClick={() => handleEventCardClick(event)}
+            >
               <div>
-                <h2>Event Map Explorer</h2>
-                <p>Scout mock Eventbrite & Google Places picks and pin them on the map.</p>
+                <span className="event-card__title">{event.title}</span>
+                <span className="event-card__meta">
+                  {event.venue ?? event.address ?? "TBA"} · {event.price ?? "—"}
+                </span>
               </div>
-              <span className="source-pill">mock data</span>
-            </div>
-            <form className="event-form" onSubmit={handleEventSearchSubmit}>
-              <label>
-                Keywords
-                <input
-                  value={eventQuery}
-                  onChange={(e) => setEventQuery(e.target.value)}
-                  placeholder="live music, sunset, comedy"
-                />
-              </label>
-              <label>
-                Location
-                <input
-                  value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
-                  placeholder="City or neighborhood"
-                />
-              </label>
-              <label>
-                Vibe filter
-                <input
-                  value={eventVibeFilter}
-                  onChange={(e) => setEventVibeFilter(e.target.value)}
-                  placeholder="music, outdoors, cozy"
-                />
-              </label>
-              <label className="event-provider">
-                Provider
-                <select
-                  value={eventProvider}
-                  onChange={(e) => setEventProvider(e.target.value as EventProviderOption)}
-                >
-                  <option value="all">All providers</option>
-                  <option value="eventbrite">Eventbrite</option>
-                  <option value="google_places">Google Places</option>
-                </select>
-              </label>
-              <button className="secondary" type="submit" disabled={eventsLoading}>
-                {eventsLoading ? "Searching..." : "Refresh map"}
-              </button>
-            </form>
-            <div className="map-wrapper">
-              {hasMapboxToken ? (
-                <div ref={mapContainerRef} className="map-container" />
-              ) : (
-                <div className="map-placeholder">
-                  Add your <code>VITE_MAPBOX_ACCESS_TOKEN</code> to enable the interactive map.
-                  Events are still listed below.
-                </div>
-              )}
-            </div>
-            <div className="event-results">
-              {eventsLoading && <p className="placeholder">Loading events...</p>}
-              {eventsError && <div className="error">{eventsError}</div>}
-              {!eventsLoading && !eventsError && events.length === 0 && (
-                <p className="placeholder">
-                  No events matched the current filters. Try adjusting the keywords or location.
-                </p>
-              )}
-              {!eventsLoading && !eventsError && events.length > 0 && (
-                <div className="event-cards">
-                  {events.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      className={`event-card ${activeEventId === event.id ? "event-card--active" : ""}`}
-                      onClick={() => handleEventCardClick(event)}
-                    >
-                      <div className="event-card__content">
-                        <h3>{event.title}</h3>
-                        <p className="event-card__address">{event.venue ?? event.address ?? "TBA"}</p>
-                        <p className="event-card__meta">
-                          {event.price ? `Price: ${event.price}` : "Price: —"} ·{" "}
-                          <span className="source-pill">{event.source}</span>
-                        </p>
-                        {event.summary && (
-                          <p className="event-card__summary">{event.summary}</p>
-                        )}
-                      </div>
-                      <div className="event-card__links">
-                        {event.booking_url && (
-                          <a href={event.booking_url} target="_blank" rel="noreferrer">
-                            Event
-                          </a>
-                        )}
-                        {event.maps_url && (
-                          <a href={event.maps_url} target="_blank" rel="noreferrer">
-                            Map
-                          </a>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer>
-        <p>
-          Built for crews who ask “What should we do?” Vivi learns your vibe signatures and keeps the
-          energy flowing.
-        </p>
-      </footer>
+              <span className="source-pill">{event.source}</span>
+            </button>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }
