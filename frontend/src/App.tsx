@@ -1,4 +1,4 @@
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useEffect, useState } from "react";
 import { ActivityResult, searchActivities } from "./lib/api";
 
 type FormState = {
@@ -14,6 +14,7 @@ export default function App() {
     budget_cap: "30",
   });
   const [activities, setActivities] = useState<ActivityResult[]>([]);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -31,11 +32,21 @@ export default function App() {
         budget_cap: Number.isFinite(budget) ? budget : undefined,
       });
       setActivities(results);
+      setSelectedActivity(results[0] ?? null);
       setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setActivities([]);
+      setSelectedActivity(null);
       setHasSearched(true);
+  useEffect(() => {
+    if (activities.length > 0) {
+      setSelectedActivity((prev) => prev ?? activities[0]);
+    } else {
+      setSelectedActivity(null);
+    }
+  }, [activities]);
+
     } finally {
       setLoading(false);
     }
@@ -107,18 +118,59 @@ export default function App() {
 
           <ul className="results">
             {activities.map((activity) => (
-              <ActivityCard key={activity.id} activity={activity} />
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                isActive={selectedActivity?.id === activity.id}
+                onSelect={() => setSelectedActivity(activity)}
+              />
             ))}
           </ul>
+        </section>
+
+        <section className="panel">
+          <header className="panel__header">
+            <h2>Map</h2>
+          </header>
+          {selectedActivity ? (
+            <div className="map-panel">
+              <div className="map-panel__meta">
+                <strong>{selectedActivity.title}</strong>
+                <p>{selectedActivity.address ?? "Location coming soon"}</p>
+              </div>
+              {selectedActivity.lat != null && selectedActivity.lng != null ? (
+                <iframe
+                  title="Activity location"
+                  className="map-frame"
+                  src={`https://maps.google.com/maps?q=${selectedActivity.lat},${selectedActivity.lng}&z=15&output=embed`}
+                  allowFullScreen
+                  loading="lazy"
+                />
+              ) : (
+                <p className="muted">No coordinates available for this spot.</p>
+              )}
+            </div>
+          ) : (
+            <p className="muted">Select an activity to preview it on the map.</p>
+          )}
         </section>
       </main>
     </div>
   );
 }
 
-function ActivityCard({ activity }: { activity: ActivityResult }) {
+function ActivityCard({
+  activity,
+  isActive,
+  onSelect,
+}: {
+  activity: ActivityResult;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <li className="result-card">
+    <li>
+      <button type="button" className={`result-card ${isActive ? "result-card--active" : ""}`} onClick={onSelect}>
       <header className="result-card__head">
         <h3>{activity.title}</h3>
         <span className={`tag tag--${activity.source}`}>{activity.source}</span>
@@ -142,6 +194,7 @@ function ActivityCard({ activity }: { activity: ActivityResult }) {
           </a>
         )}
       </div>
+      </button>
     </li>
   );
 }

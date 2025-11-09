@@ -15,6 +15,8 @@ export type ActivityResult = {
   price?: string | null;
   booking_url?: string | null;
   maps_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export async function searchActivities(payload: ActivitySearchPayload): Promise<ActivityResult[]> {
