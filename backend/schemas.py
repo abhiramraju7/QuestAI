@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+
 class UserTaste(BaseModel):
     user_id: str
     likes: List[str] = []
@@ -9,6 +10,7 @@ class UserTaste(BaseModel):
     budget_max: Optional[float] = None
     distance_km_max: Optional[float] = None
     tags: List[str] = []
+
 
 class GroupRequest(BaseModel):
     query_text: str
@@ -21,6 +23,7 @@ class GroupRequest(BaseModel):
     custom_likes: List[str] = Field(default_factory=list)
     custom_tags: List[str] = Field(default_factory=list)
 
+
 class FriendOverride(BaseModel):
     user_id: str
     display_name: Optional[str] = None
@@ -29,6 +32,22 @@ class FriendOverride(BaseModel):
     tags: List[str] = Field(default_factory=list)
     budget_max: Optional[float] = None
     distance_km_max: Optional[float] = None
+
+
+class EventItem(BaseModel):
+    id: str
+    title: str
+    venue: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    price: Optional[str] = None
+    vibe: Optional[str] = None
+    summary: Optional[str] = None
+    booking_url: Optional[str] = None
+    maps_url: Optional[str] = None
+    source: str
+
 
 class PlanCard(BaseModel):
     title: str
@@ -48,9 +67,11 @@ class PlanCard(BaseModel):
     reasons: List[str]
     source: str
 
+
 class PlanResponse(BaseModel):
     query_normalized: str
     merged_vibe: Optional[str] = None
     energy_profile: Optional[str] = None
     candidates: List[PlanCard]
     action_log: List[str]
+

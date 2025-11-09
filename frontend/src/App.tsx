@@ -398,7 +398,7 @@ export default function App() {
       </header>
 
       <section className="control-stack">
-        <form className="query-card" onSubmit={onSubmit}>
+        <form className="panel query-card" onSubmit={onSubmit}>
           <label className="query-card__prompt">
             <span>What do you feel like?</span>
             <textarea
@@ -606,7 +606,7 @@ export default function App() {
           </div>
         </form>
 
-        <div className="result-card">
+        <div className="panel result-card">
           {loading && <p className="placeholder">Synthesizing picks...</p>}
           {!loading && !result && !error && (
             <p className="placeholder">Enter a mood and interests to surface events on the map.</p>
