@@ -509,14 +509,9 @@ function HorizontalPicker({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const getEventImage = (e: EventItem): string => {
-    const direct = (e as any).image_url as string | undefined;
-    if (direct) return direct;
-    const vibeText = ((e as any).vibe || (e as any).vibes?.[0] || "").toString();
-    const q = encodeURIComponent(
-      `${e.title || ""} ${vibeText} Atlanta activity, event, outdoors, nightlife`
-    );
-    // Unsplash Source without API key; random photo matching query
-    return `https://source.unsplash.com/200x200/?${q}`;
+    // Dummy image placeholder: deterministic per id/title so the grid looks consistent.
+    const seed = encodeURIComponent((e as any).id || (e as any).title || "activity");
+    return `https://picsum.photos/seed/${seed}/200/200`;
   };
 
   const placeholders = useMemo(
