@@ -259,7 +259,7 @@ export default function App() {
       />
       {activeNav === "Discover" && (
         <HorizontalPicker
-          score={displayScore}
+          headline={makeHeadline(query, budgetCap, vibeHint, eventLocation || locationHint)}
           friends={friendObjects.map((f) => f.name)}
           events={events.slice(0, 15)}
           onGenerate={() => onSubmit as any}
@@ -491,15 +491,32 @@ function CenterRecommendations({
   );
 }
 
+function makeHeadline(
+  queryText: string,
+  budget: string,
+  vibe: string,
+  loc: string
+) {
+  const parts: string[] = [];
+  if (queryText) {
+    const first = queryText.split(".")[0];
+    parts.push(first.replace(/^we/i, "We"));
+  }
+  if (budget) parts.push(`Under $${budget} 🍕`);
+  if (vibe) parts.push(`${vibe[0].toUpperCase()}${vibe.slice(1)} 🌱☁️`);
+  if (loc) parts.push(`Near ${loc}`);
+  return parts.join("  ·  ");
+}
+
 function HorizontalPicker({
-  score,
+  headline,
   friends,
   events,
   onGenerate,
   onEventClick,
   loading,
 }: {
-  score: number;
+  headline: string;
   friends: string[];
   events: EventItem[];
   onGenerate: (e: FormEvent<HTMLFormElement>) => void;
@@ -566,6 +583,7 @@ function HorizontalPicker({
 
   return (
     <section className="yumi-center">
+      <h1 className="headline">{headline || "Tell us the vibe…"} </h1>
       <div className="friends-row">
         {friends.map((name) => {
           const initial = name.slice(0, 1).toUpperCase();
@@ -579,6 +597,9 @@ function HorizontalPicker({
       </div>
 
       <div className="belt" ref={containerRef}>
+        <div className="mini-orb">
+          <div className="mini-orb__glow" />
+        </div>
         <div
           ref={trackRef}
           className={`belt__track ${paused ? "is-paused" : ""}`}
@@ -598,15 +619,6 @@ function HorizontalPicker({
               </div>
             </button>
           ))}
-        </div>
-      </div>
-
-      <div className="orb">
-        <div className="orb__glow" />
-        <div className="orb__ring" />
-        <div className="orb__content">
-          <div className="orb__score">{score}%</div>
-          <div className="orb__label">Group Match</div>
         </div>
       </div>
 

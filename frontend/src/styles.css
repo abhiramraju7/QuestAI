@@ -1014,6 +1014,22 @@ body {
   padding-left: 250px;
 }
 
+/* Headline like the reference */
+.headline {
+  position: absolute;
+  top: calc(50% - 17rem);
+  margin: 0;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.8rem, 3.6vw, 3rem);
+  background: linear-gradient(180deg, #111827, #6b7280);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-align: center;
+  width: min(1100px, 80vw);
+}
+
 /* Orb light overrides */
 .orb__glow {
   background: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.18), rgba(56, 189, 248, 0.12) 40%, transparent 60%);
@@ -1233,6 +1249,26 @@ body {
 .picker-actions {
   position: absolute;
   top: calc(50% + 7rem);
+}
+
+/* Subtle mini orb at center */
+.mini-orb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 40% 30%, rgba(147, 112, 247, 0.25), rgba(147, 112, 247, 0.08) 60%, transparent 70%);
+  filter: blur(0.2px);
+}
+.mini-orb__glow {
+  position: absolute;
+  inset: -20%;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 50%, rgba(99,102,241,0.15), rgba(99,102,241,0) 60%);
+  filter: blur(20px);
 }
 .yumi-card {
   pointer-events: auto;
