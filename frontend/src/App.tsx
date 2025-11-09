@@ -246,24 +246,27 @@ export default function App() {
     result?.candidates?.length ? Math.max(...result.candidates.map((c: PlanCard) => c.group_score)) : null;
   const displayScore = topScore ? Math.round(topScore * 100) : 62;
   const friendObjects = FRIENDS.filter((f) => selectedFriends.includes(f.id));
+  const [activeNav, setActiveNav] = useState<string>("Discover");
 
   return (
     <div className="map-layout">
       <LightSurface />
-      <SidebarNav />
+      <SidebarNav active={activeNav} onSelect={(label: string) => setActiveNav(label)} />
       <LocationChip
         value={eventLocation}
         onChange={(v) => setEventLocation(v)}
         onSubmit={() => void performEventSearch()}
       />
-      <CenterRecommendations
-        score={displayScore}
-        friends={friendObjects.map((f) => f.name)}
-        events={events}
-        activeId={activeEventId}
-        onEventClick={handleEventCardClick}
-        loading={eventsLoading || loading}
-      />
+      {activeNav === "Discover" && (
+        <CenterRecommendations
+          score={displayScore}
+          friends={friendObjects.map((f) => f.name)}
+          events={events}
+          activeId={activeEventId}
+          onEventClick={handleEventCardClick}
+          loading={eventsLoading || loading}
+        />
+      )}
       <ChatBar
         value={query}
         onChange={setQuery}
@@ -355,7 +358,7 @@ function LightSurface() {
   return <div className="yumi-surface" />;
 }
 
-function SidebarNav() {
+function SidebarNav({ active, onSelect }: { active: string; onSelect: (label: string) => void }) {
   const items = [
     { label: "Discover", icon: "🧭" },
     { label: "Social Network", icon: "👥" },
@@ -366,10 +369,15 @@ function SidebarNav() {
   ];
   return (
     <aside className="yumi-sidebar-nav">
-      <div className="yumi-brand">YUMI</div>
+      <div className="yumi-brand">Challo</div>
       <nav>
         {items.map((it, idx) => (
-          <button key={it.label} className={`yumi-nav-item ${idx === 0 ? "is-active" : ""}`} type="button">
+          <button
+            key={it.label}
+            className={`yumi-nav-item ${active === it.label ? "is-active" : ""}`}
+            type="button"
+            onClick={() => onSelect(it.label)}
+          >
             <span className="yumi-nav-icon">{it.icon}</span>
             <span>{it.label}</span>
           </button>

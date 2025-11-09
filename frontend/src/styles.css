@@ -622,10 +622,8 @@ select:focus {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background:
-    conic-gradient(from -90deg, #38bdf8 var(--meter-deg, 220deg), rgba(14, 165, 233, 0.2) var(--meter-deg, 220deg)),
-    radial-gradient(circle at center, rgba(2, 6, 23, 0) 62%, rgba(14, 23, 42, 0.9) 62%);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), inset 0 0 60px rgba(59, 130, 246, 0.25);
+  background: radial-gradient(circle at center, rgba(2, 6, 23, 0) 62%, rgba(14, 23, 42, 0.9) 62%);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28), inset 0 0 60px rgba(59, 130, 246, 0.18);
   transition: 600ms ease-in-out;
 }
 .orb__content {
@@ -1022,9 +1020,8 @@ body {
 }
 .orb__ring {
   background:
-    conic-gradient(from -90deg, #8b5cf6 var(--meter-deg, 220deg), rgba(139, 92, 246, 0.15) var(--meter-deg, 220deg)),
     radial-gradient(circle at center, rgba(255,255,255,0) 62%, rgba(255,255,255,0.8) 62%);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), inset 0 0 60px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.28), inset 0 0 60px rgba(99, 102, 241, 0.12);
 }
 .orb__score {
   background: linear-gradient(180deg, #4f46e5, #8b5cf6, #a78bfa);
@@ -1050,7 +1047,13 @@ body {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  pointer-events: none;
+  pointer-events: auto;
+  animation: orbit-slow 38s linear infinite;
+}
+.yumi-orbit-cards:hover { animation-play-state: paused; }
+@keyframes orbit-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .yumi-card {
   pointer-events: auto;
