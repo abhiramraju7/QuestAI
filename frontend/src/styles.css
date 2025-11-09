@@ -706,3 +706,200 @@ select:focus {
   to { transform: rotate(360deg); }
 }
 
+/* ===== Yumi-style Layout ===== */
+.yumi-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 360px 1fr 380px;
+  gap: 1.25rem;
+  padding: 8.5rem 2rem 2.5rem;
+}
+
+.yumi-sidebar {
+  align-self: start;
+  display: grid;
+  gap: 1rem;
+}
+.yumi-section-header h3 {
+  margin: 0;
+}
+.yumi-section-header small {
+  color: #a5b4fc;
+}
+.yumi-subsection h4 {
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.yumi-main {
+  display: grid;
+  gap: 1.25rem;
+  align-self: start;
+}
+.yumi-search {
+  display: grid;
+  gap: 0.6rem;
+}
+.yumi-search input {
+  width: 100%;
+}
+.search-row {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr 1fr 1fr auto;
+}
+.yumi-event-filters {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  margin-bottom: 0.5rem;
+}
+
+.yumi-rightbar {
+  display: grid;
+  gap: 1.25rem;
+  align-self: start;
+}
+.yumi-orb {
+  display: grid;
+  place-items: center;
+}
+
+/* Hobby Plate */
+.hobby-plate {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 0.5rem;
+}
+.plate-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(59,130,246,0.25), rgba(15,23,42,0.75) 60%);
+  box-shadow: inset 0 0 0 2px rgba(148,163,184,0.25), inset 0 30px 80px rgba(99,102,241,0.2);
+}
+.plate-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.plate-slot--filled {
+  border-style: solid;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+.plate-slot span {
+  padding: 0 0.5rem;
+  text-align: center;
+}
+
+.chip-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chip {
+  all: unset;
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(2, 6, 23, 0.65);
+  padding: 0.4rem 0.65rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.chip--active {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+/* Activity Grid */
+.activity-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+.activity-card {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.activity-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 12px 28px rgba(56, 189, 248, 0.18);
+}
+.activity-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+.activity-title {
+  font-weight: 700;
+}
+.activity-meta {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+/* Plan cards */
+.plan-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.plan-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.95rem;
+  background: rgba(15, 23, 42, 0.52);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+.plan-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.plan-card__meta {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .yumi-layout {
+    grid-template-columns: 1fr;
+  }
+  .yumi-rightbar {
+    order: 3;
+  }
+  .yumi-sidebar {
+    order: 1;
+  }
+  .yumi-main {
+    order: 2;
+  }
+}
+

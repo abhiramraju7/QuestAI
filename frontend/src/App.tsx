@@ -260,15 +260,35 @@ export default function App() {
         </div>
       </header>
 
-      <section className="center-stage">
-        <SimilarityOrb score={displayScore} friends={friendObjects.map((f) => f.name)} />
-        <OrbitingTags
-          tags={Array.from(new Set([...splitList(customTags), ...(vibeHint ? [vibeHint] : [])]))
-            .slice(0, 8)
-            .map((t) => t.trim())
-            .filter(Boolean)}
-        />
-      </section>
+      <YumiLayout
+        query={query}
+        setQuery={setQuery}
+        locationHint={locationHint}
+        setLocationHint={setLocationHint}
+        timeWindow={timeWindow}
+        setTimeWindow={setTimeWindow}
+        vibeHint={vibeHint}
+        setVibeHint={setVibeHint}
+        customLikes={customLikes}
+        setCustomLikes={setCustomLikes}
+        customTags={customTags}
+        setCustomTags={setCustomTags}
+        selectedFriends={selectedFriends}
+        toggleFriend={toggleFriend}
+        friends={FRIENDS}
+        onSubmit={onSubmit}
+        loading={loading}
+        events={events}
+        eventsLoading={eventsLoading}
+        eventsError={eventsError}
+        setEventQuery={setEventQuery}
+        setEventLocation={setEventLocation}
+        setEventVibeFilter={setEventVibeFilter}
+        handleEventSearchSubmit={handleEventSearchSubmit}
+        result={result}
+        displayScore={displayScore}
+        onEventClick={handleEventCardClick}
+      />
 
       <section className="control-stack">
         <form className="panel query-card" onSubmit={onSubmit}>
@@ -659,6 +679,328 @@ function AnimatedBackdrop() {
       <div className="blob blob--2" />
       <div className="blob blob--3" />
       <div className="grid-lights" />
+    </div>
+  );
+}
+
+type YumiLayoutProps = {
+  query: string;
+  setQuery: (v: string) => void;
+  locationHint: string;
+  setLocationHint: (v: string) => void;
+  timeWindow: string;
+  setTimeWindow: (v: string) => void;
+  vibeHint: string;
+  setVibeHint: (v: string) => void;
+  customLikes: string;
+  setCustomLikes: (v: string) => void;
+  customTags: string;
+  setCustomTags: (v: string) => void;
+  selectedFriends: string[];
+  toggleFriend: (id: string) => void;
+  friends: typeof FRIENDS;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  loading: boolean;
+  events: EventItem[];
+  eventsLoading: boolean;
+  eventsError: string | null;
+  setEventQuery: (v: string) => void;
+  setEventLocation: (v: string) => void;
+  setEventVibeFilter: (v: string) => void;
+  handleEventSearchSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  result: PlanResponse | null;
+  displayScore: number;
+  onEventClick: (event: EventItem) => void;
+};
+
+function YumiLayout(props: YumiLayoutProps) {
+  const {
+    query,
+    setQuery,
+    locationHint,
+    setLocationHint,
+    timeWindow,
+    setTimeWindow,
+    vibeHint,
+    setVibeHint,
+    customLikes,
+    setCustomLikes,
+    customTags,
+    setCustomTags,
+    selectedFriends,
+    toggleFriend,
+    friends,
+    onSubmit,
+    loading,
+    events,
+    eventsLoading,
+    eventsError,
+    setEventQuery,
+    setEventLocation,
+    setEventVibeFilter,
+    handleEventSearchSubmit,
+    result,
+    displayScore,
+    onEventClick,
+  } = props;
+
+  const defaultHobbies = useMemo(
+    () => [
+      "live music",
+      "board games",
+      "hiking",
+      "coffee tasting",
+      "museum",
+      "karaoke",
+      "photography",
+      "yoga",
+      "coding jam",
+      "kayaking",
+      "escape room",
+      "arcade",
+    ],
+    []
+  );
+
+  const initialSelected = useMemo(() => splitList(customLikes).slice(0, 6), [customLikes]);
+  const [plateSelected, setPlateSelected] = useState<string[]>(initialSelected);
+
+  useEffect(() => {
+    setCustomLikes(plateSelected.join(", "));
+  }, [plateSelected, setCustomLikes]);
+
+  const suggestionSet = useMemo(() => {
+    const extra = [
+      ...splitList(customTags),
+      ...friends.flatMap((f) => splitList(f.defaultLikes ?? "")),
+    ];
+    return Array.from(new Set([...defaultHobbies, ...extra])).slice(0, 24);
+  }, [customTags, defaultHobbies, friends]);
+
+  const friendNames = friends
+    .filter((f) => selectedFriends.includes(f.id))
+    .map((f) => f.name);
+
+  return (
+    <div className="yumi-layout">
+      <aside className="yumi-sidebar panel">
+        <header className="yumi-section-header">
+          <h3>Hobby Plate</h3>
+          <small>Pick up to 6 hobbies</small>
+        </header>
+        <HobbyPlate
+          selected={plateSelected}
+          onToggle={(tag) =>
+            setPlateSelected((prev) =>
+              prev.includes(tag) ? prev.filter((t) => t !== tag) : prev.length < 6 ? [...prev, tag] : prev
+            )
+          }
+        />
+        <div className="chip-cloud">
+          {suggestionSet.map((tag) => {
+            const active = plateSelected.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                className={`chip ${active ? "chip--active" : ""}`}
+                onClick={() =>
+                  setPlateSelected((prev) =>
+                    prev.includes(tag)
+                      ? prev.filter((t) => t !== tag)
+                      : prev.length < 6
+                      ? [...prev, tag]
+                      : prev
+                  )
+                }
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="yumi-subsection">
+          <h4>Friends</h4>
+          <div className="friend-chips">
+            {friends.map((friend) => {
+              const active = selectedFriends.includes(friend.id);
+              return (
+                <button
+                  key={friend.id}
+                  type="button"
+                  className={`friend-chip ${active ? "friend-chip--active" : ""}`}
+                  onClick={() => toggleFriend(friend.id)}
+                >
+                  <span>{friend.name}</span>
+                  <small>{friend.tags.join(" · ")}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
+
+      <main className="yumi-main">
+        <form className="yumi-search panel" onSubmit={onSubmit}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="What vibe are you going for? e.g., outdoorsy music near Cambridge under $20"
+          />
+          <div className="search-row">
+            <input
+              value={locationHint}
+              onChange={(e) => setLocationHint(e.target.value)}
+              placeholder="Location"
+            />
+            <input
+              value={timeWindow}
+              onChange={(e) => setTimeWindow(e.target.value)}
+              placeholder="Time window"
+            />
+            <input
+              value={vibeHint}
+              onChange={(e) => setVibeHint(e.target.value)}
+              placeholder="Vibe (optional)"
+            />
+            <button className="primary" type="submit" disabled={loading}>
+              {loading ? "Curating..." : "Explore Activities"}
+            </button>
+          </div>
+        </form>
+
+        <section className="panel">
+          <header className="yumi-section-header">
+            <h3>Activity Places</h3>
+            <small>From Eventbrite and Google Places</small>
+          </header>
+
+          <form className="yumi-event-filters" onSubmit={handleEventSearchSubmit}>
+            <input onChange={(e) => setEventQuery(e.target.value)} placeholder="Keyword" />
+            <input onChange={(e) => setEventLocation(e.target.value)} placeholder="Location" />
+            <input onChange={(e) => setEventVibeFilter(e.target.value)} placeholder="Vibe" />
+            <button type="submit" disabled={eventsLoading}>
+              {eventsLoading ? "..." : "Refresh"}
+            </button>
+          </form>
+
+          {eventsError && <div className="inline-error">{eventsError}</div>}
+          {!eventsError && eventsLoading && <p className="placeholder">Loading events...</p>}
+          {!eventsError && !eventsLoading && events.length === 0 && (
+            <p className="placeholder">No events matched. Try new keywords.</p>
+          )}
+
+          <ActivityGrid events={events} onClick={onEventClick} />
+        </section>
+      </main>
+
+      <aside className="yumi-rightbar">
+        <div className="panel yumi-orb">
+          <SimilarityOrb score={displayScore} friends={friendNames} />
+        </div>
+
+        <div className="panel">
+          <header className="yumi-section-header">
+            <h3>Curated Plan</h3>
+            <small>Best-fit picks for your group</small>
+          </header>
+          {!result && <p className="placeholder">Run a search to see curated picks.</p>}
+          {result && (
+            <ul className="plan-grid">
+              {result.candidates.map((card) => (
+                <li key={card.title} className="plan-card">
+                  <div className="plan-card__head">
+                    <strong>{card.title}</strong>
+                    <span className="score">{Math.round(card.group_score * 100)}%</span>
+                  </div>
+                  <p className="plan-card__meta">
+                    {card.price ? card.price : "—"} ·{" "}
+                    {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
+                    <span className="source-pill">{card.source}</span>
+                  </p>
+                  {card.summary && <p className="summary-text">{card.summary}</p>}
+                  <div className="links">
+                    {card.booking_url && (
+                      <a href={card.booking_url} target="_blank" rel="noreferrer">
+                        Event
+                      </a>
+                    )}
+                    {card.maps_url && (
+                      <a href={card.maps_url} target="_blank" rel="noreferrer">
+                        Map
+                      </a>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function HobbyPlate({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (tag: string) => void;
+}) {
+  const slots = Array.from({ length: 6 });
+  return (
+    <div className="hobby-plate">
+      <div className="plate-base" />
+      {slots.map((_, i) => {
+        const tag = selected[i];
+        const angle = (i / slots.length) * 360;
+        const transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-80px) rotate(${-angle}deg)`;
+        return (
+          <button
+            key={i}
+            type="button"
+            className={`plate-slot ${tag ? "plate-slot--filled" : ""}`}
+            style={{ transform }}
+            onClick={() => tag && onToggle(tag)}
+            title={tag || "Empty slot"}
+          >
+            <span>{tag ? tag : "+"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ActivityGrid({
+  events,
+  onClick,
+}: {
+  events: EventItem[];
+  onClick: (event: EventItem) => void;
+}) {
+  return (
+    <div className="activity-grid">
+      {events.map((e) => (
+        <button key={e.id} type="button" className="activity-card" onClick={() => onClick(e)}>
+          <div className="activity-card__head">
+            <span className="activity-title">{e.title}</span>
+            <span className="source-pill">{e.source}</span>
+          </div>
+          <span className="activity-meta">{e.venue ?? e.address ?? "TBA"} · {e.price ?? "—"}</span>
+          {e.vibes?.length ? (
+            <div className="tag-chip-row">
+              {e.vibes.slice(0, 3).map((v) => (
+                <span className="tag-chip" key={v}>
+                  {v}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </button>
+      ))}
     </div>
   );
 }
