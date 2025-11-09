@@ -1,4 +1,4 @@
-# Vivi — Agentic Activity Network
+# Challo — Agentic Activity Network
 
 “You bring the mood, and your friends bring the vibe. AI orchestrates the plan.”
 
