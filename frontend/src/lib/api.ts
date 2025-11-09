@@ -61,13 +61,13 @@ export type EventItem = {
   city?: string | null;
   region?: string | null;
   country?: string | null;
-  lat: number;
-  lng: number;
+  lat?: number | null;
+  lng?: number | null;
   booking_url?: string | null;
   maps_url?: string | null;
   price?: string | null;
-  vibes: string[];
-  tags: string[];
+  vibe?: string | null;
+  tags?: string[];
   start_time?: string | null;
   end_time?: string | null;
 };

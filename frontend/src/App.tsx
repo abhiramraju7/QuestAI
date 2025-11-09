@@ -1,4 +1,4 @@
-import React, { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { EventItem, fetchEvents, fetchPlan } from "./lib/api";
 
 type PlanCard = {
@@ -28,7 +28,15 @@ type PlanResponse = {
   action_log: string[];
 };
 
-const FRIENDS = [
+type FriendConfig = {
+  id: string;
+  name: string;
+  tags: string[];
+  defaultLikes?: string;
+  defaultVibes?: string;
+};
+
+const FRIENDS: FriendConfig[] = [
   {
     id: "00000000-0000-0000-0000-000000000001",
     name: "Alex",
@@ -52,12 +60,24 @@ const FRIENDS = [
   },
 ];
 
+const INITIAL_SELECTED_FRIENDS = FRIENDS.slice(0, 2).map((friend) => friend.id);
+
 type FriendInputState = {
   likes: string;
   vibes: string;
   tags: string;
   budget: string;
   distance: string;
+};
+
+type LastContext = {
+  location: string;
+  time: string;
+  vibeHint?: string;
+  budget?: number;
+  distance?: number;
+  likes: string[];
+  tags: string[];
 };
 
 type EventProviderOption = "all" | "eventbrite" | "google_places";
@@ -67,6 +87,20 @@ const splitList = (value: string) =>
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const buildInitialFriendInputs = (): Record<string, FriendInputState> => {
+  const entries = FRIENDS.map((friend) => [
+    friend.id,
+    {
+      likes: friend.defaultLikes ?? "",
+      vibes: friend.defaultVibes ?? "",
+      tags: friend.tags.join(", "),
+      budget: "",
+      distance: "",
+    },
+  ]);
+  return Object.fromEntries(entries);
+};
 
 export default function App() {
   const [query, setQuery] = useState(
@@ -79,32 +113,15 @@ export default function App() {
   const [distanceKm, setDistanceKm] = useState<string>("5");
   const [customLikes, setCustomLikes] = useState("live music, sunset picnic");
   const [customTags, setCustomTags] = useState("outdoor, group, evening");
-  const [selectedFriends, setSelectedFriends] = useState<string[]>(FRIENDS.slice(0, 2).map((f) => f.id));
-  const [friendInputs, setFriendInputs] = useState<Record<string, FriendInputState>>(() => {
-    const entries = FRIENDS.map((friend) => [
-      friend.id,
-      {
-        likes: friend.defaultLikes ?? "",
-        vibes: friend.defaultVibes ?? "",
-        tags: friend.tags.join(", "),
-        budget: "",
-        distance: "",
-      },
-    ]);
-    return Object.fromEntries(entries);
-  });
+
+  const [selectedFriends, setSelectedFriends] = useState<string[]>(INITIAL_SELECTED_FRIENDS);
+  const [activeFriendId, setActiveFriendId] = useState<string | null>(INITIAL_SELECTED_FRIENDS[0] ?? null);
+  const [friendInputs, setFriendInputs] = useState<Record<string, FriendInputState>>(buildInitialFriendInputs);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PlanResponse | null>(null);
-  const [lastContext, setLastContext] = useState<{
-    location: string;
-    time: string;
-    vibeHint?: string;
-    budget?: number;
-    distance?: number;
-    likes: string[];
-    tags: string[];
-  } | null>(null);
+  const [lastContext, setLastContext] = useState<LastContext | null>(null);
 
   const [eventQuery, setEventQuery] = useState("live music");
   const [eventLocation, setEventLocation] = useState("Cambridge, MA");
@@ -114,25 +131,6 @@ export default function App() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
-
-  const vibePalette = useMemo(() => {
-    return {
-      chill: "#b5c0d0",
-      outdoors: "#6fc495",
-      social: "#f6ad55",
-      artsy: "#d6bcfa",
-      nerdy: "#63b3ed",
-      romantic: "#f687b3",
-      active: "#f6e05e",
-      quiet: "#a0aec0",
-      creative: "#fbd38d",
-      music: "#f687b3",
-      adventure: "#68d391",
-      mindful: "#9ae6b4",
-      party: "#f56565",
-      sports: "#60a5fa",
-    } as Record<string, string>;
-  }, []);
 
   const performEventSearch = useCallback(async () => {
     setEventsLoading(true);
@@ -150,11 +148,7 @@ export default function App() {
         limit: 20,
       });
       setEvents(data);
-      if (data.length > 0) {
-        setActiveEventId(data[0].id);
-      } else {
-        setActiveEventId(null);
-      }
+      setActiveEventId(data.length > 0 ? data[0].id : null);
     } catch (err) {
       setEvents([]);
       setActiveEventId(null);
@@ -168,228 +162,832 @@ export default function App() {
     void performEventSearch();
   }, [performEventSearch]);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setLastContext(null);
-
-    try {
-      const likesArray = splitList(customLikes);
-      const tagsArray = splitList(customTags);
-
-      const friendOverrides = selectedFriends.map((id: string) => {
-        const inputs = friendInputs[id] || {
-          likes: "",
-          vibes: "",
-          tags: "",
-          budget: "",
-          distance: "",
-        };
-        return {
-          user_id: id,
-          display_name: FRIENDS.find((f: typeof FRIENDS[number]) => f.id === id)?.name,
-          likes: splitList(inputs.likes),
-          vibes: splitList(inputs.vibes),
-          tags: splitList(inputs.tags),
-          budget_max: inputs.budget ? Number(inputs.budget) : undefined,
-          distance_km_max: inputs.distance ? Number(inputs.distance) : undefined,
-        };
-      });
-
-      const data = await fetchPlan({
-        query_text: query,
-        user_ids: selectedFriends,
-        location_hint: locationHint,
-        time_window: timeWindow,
-        vibe_hint: vibeHint || undefined,
-        budget_cap: budgetCap ? Number(budgetCap) : undefined,
-        distance_km: distanceKm ? Number(distanceKm) : undefined,
-        custom_likes: likesArray,
-        custom_tags: tagsArray,
-        friend_overrides: friendOverrides,
-      });
-      setResult(data);
-      setLastContext({
-        location: locationHint,
-        time: timeWindow,
-        vibeHint: vibeHint || undefined,
-        budget: budgetCap ? Number(budgetCap) : undefined,
-        distance: distanceKm ? Number(distanceKm) : undefined,
-        likes: likesArray,
-        tags: tagsArray,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch plan.");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (activeFriendId && !selectedFriends.includes(activeFriendId)) {
+      setActiveFriendId(selectedFriends[0] ?? null);
     }
-  }
+  }, [activeFriendId, selectedFriends]);
 
-  function toggleFriend(id: string) {
-    setSelectedFriends((prev: string[]) =>
-      prev.includes(id) ? prev.filter((f: string) => f !== id) : [...prev, id]
-    );
-  }
+  const handleFriendInputChange = useCallback(
+    (id: string, field: keyof FriendInputState, value: string) => {
+      setFriendInputs((prev) => ({
+        ...prev,
+        [id]: {
+          ...(prev[id] ?? { likes: "", vibes: "", tags: "", budget: "", distance: "" }),
+          [field]: value,
+        },
+      }));
+    },
+    []
+  );
 
-  function handleEventSearchSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    void performEventSearch();
-  }
+  const handlePlanSubmit = useCallback(
+    async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setLoading(true);
+      setError(null);
+      setResult(null);
+      setLastContext(null);
 
-  function handleEventCardClick(event: EventItem) {
+      try {
+        const likesArray = splitList(customLikes);
+        const tagsArray = splitList(customTags);
+
+        const friendOverrides = selectedFriends.map((id) => {
+          const inputs = friendInputs[id] ?? { likes: "", vibes: "", tags: "", budget: "", distance: "" };
+          return {
+            user_id: id,
+            display_name: FRIENDS.find((f) => f.id === id)?.name,
+            likes: splitList(inputs.likes),
+            vibes: splitList(inputs.vibes),
+            tags: splitList(inputs.tags),
+            budget_max: inputs.budget ? Number(inputs.budget) : undefined,
+            distance_km_max: inputs.distance ? Number(inputs.distance) : undefined,
+          };
+        });
+
+        const data = await fetchPlan({
+          query_text: query,
+          user_ids: selectedFriends,
+          location_hint: locationHint,
+          time_window: timeWindow,
+          vibe_hint: vibeHint || undefined,
+          budget_cap: budgetCap ? Number(budgetCap) : undefined,
+          distance_km: distanceKm ? Number(distanceKm) : undefined,
+          custom_likes: likesArray,
+          custom_tags: tagsArray,
+          friend_overrides: friendOverrides,
+        });
+
+        setResult(data);
+        setLastContext({
+          location: locationHint,
+          time: timeWindow,
+          vibeHint: vibeHint || undefined,
+          budget: budgetCap ? Number(budgetCap) : undefined,
+          distance: distanceKm ? Number(distanceKm) : undefined,
+          likes: likesArray,
+          tags: tagsArray,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch plan.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      budgetCap,
+      customLikes,
+      customTags,
+      distanceKm,
+      friendInputs,
+      locationHint,
+      query,
+      selectedFriends,
+      timeWindow,
+      vibeHint,
+    ]
+  );
+
+  const handleEventSearchSubmit = useCallback(
+    (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      void performEventSearch();
+    },
+    [performEventSearch]
+  );
+
+  const handleEventCardClick = useCallback((event: EventItem) => {
     setActiveEventId(event.id);
-  }
+  }, []);
 
-  const topScore =
-    result?.candidates?.length ? Math.max(...result.candidates.map((c: PlanCard) => c.group_score)) : null;
+  const toggleFriend = useCallback(
+    (id: string) => {
+      setSelectedFriends((prev) => {
+        const exists = prev.includes(id);
+        if (exists) {
+          const next = prev.filter((friendId) => friendId !== id);
+          if (activeFriendId === id) {
+            setActiveFriendId(next[0] ?? null);
+          }
+          return next;
+        }
+        setActiveFriendId(id);
+        return [...prev, id];
+      });
+    },
+    [activeFriendId]
+  );
+
+  const activeEvent = useMemo(
+    () => events.find((event) => event.id === activeEventId) ?? null,
+    [events, activeEventId]
+  );
+
+  const topScore = result?.candidates?.length
+    ? Math.max(...result.candidates.map((candidate) => candidate.group_score))
+    : null;
   const displayScore = topScore ? Math.round(topScore * 100) : 62;
-  const friendObjects = FRIENDS.filter((f) => selectedFriends.includes(f.id));
-  const [activeNav, setActiveNav] = useState<string>("Discover");
+
+  const friendObjects = useMemo(
+    () => FRIENDS.filter((friend) => selectedFriends.includes(friend.id)),
+    [selectedFriends]
+  );
 
   return (
-    <div className="map-layout">
-      <LightSurface />
-      <SidebarNav active={activeNav} onSelect={(label: string) => setActiveNav(label)} />
-      <LocationChip
-        value={eventLocation}
-        onChange={(v) => setEventLocation(v)}
-        onSubmit={() => void performEventSearch()}
-      />
-      {activeNav === "Discover" && (
-        <HorizontalPicker
-          friends={friendObjects.map((f) => f.name)}
-          events={events.slice(0, 15)}
-          onGenerate={() => onSubmit as any}
-          onEventClick={handleEventCardClick}
-          loading={eventsLoading || loading}
-        />
-      )}
-      <ChatBar
-        value={query}
-        onChange={setQuery}
-        onSubmit={onSubmit}
-        loading={loading}
-        placeholder={loading ? "AI is thinking..." : "Describe the vibe, budget, and area..."}
-      />
+    <div className="app-shell">
+      <div className="app-surface" />
+      <div className="layout">
+        <header className="app-header">
+          <div className="app-header__copy">
+            <h1>Challo Group Planner</h1>
+            <p>Blend everyone’s interests and surface the smartest picks from Eventbrite and Google Places.</p>
+          </div>
+          <div className="header-actions">
+            <LocationChip value={eventLocation} onChange={setEventLocation} onSubmit={() => void performEventSearch()} />
+            <div className="header-card">
+              <span>Active friends</span>
+              <strong>{selectedFriends.length}</strong>
+            </div>
+          </div>
+        </header>
+
+        <div className="content-grid">
+          <div className="column column--left">
+            <Panel title="Group Brief" subtitle="Tell us what the crew is craving right now.">
+              <GroupForm
+                query={query}
+                locationHint={locationHint}
+                timeWindow={timeWindow}
+                vibeHint={vibeHint}
+                budgetCap={budgetCap}
+                distanceKm={distanceKm}
+                customLikes={customLikes}
+                customTags={customTags}
+                setQuery={setQuery}
+                setLocationHint={setLocationHint}
+                setTimeWindow={setTimeWindow}
+                setVibeHint={setVibeHint}
+                setBudgetCap={setBudgetCap}
+                setDistanceKm={setDistanceKm}
+                setCustomLikes={setCustomLikes}
+                setCustomTags={setCustomTags}
+                loading={loading}
+                error={error}
+                onSubmit={handlePlanSubmit}
+                lastContext={lastContext}
+              />
+            </Panel>
+
+            <Panel title="Friend Overrides" subtitle="Toggle who’s joining and fine-tune their interests.">
+              <FriendPreferences
+                friends={FRIENDS}
+                selectedFriends={selectedFriends}
+                activeFriendId={activeFriendId}
+                onSelectFriend={setActiveFriendId}
+                onToggleFriend={toggleFriend}
+                friendInputs={friendInputs}
+                onFriendFieldChange={handleFriendInputChange}
+              />
+            </Panel>
+          </div>
+
+          <div className="column column--center">
+            <Panel title="Live Activities" subtitle="Instant feed from Eventbrite and Google Places.">
+              <EventPanel
+                eventQuery={eventQuery}
+                eventLocation={eventLocation}
+                eventVibeFilter={eventVibeFilter}
+                eventProvider={eventProvider}
+                setEventQuery={setEventQuery}
+                setEventLocation={setEventLocation}
+                setEventVibeFilter={setEventVibeFilter}
+                setEventProvider={setEventProvider}
+                customLikes={customLikes}
+                customTags={customTags}
+                onSubmit={handleEventSearchSubmit}
+                events={events}
+                eventsLoading={eventsLoading}
+                eventsError={eventsError}
+                activeEventId={activeEventId}
+                onSelectEvent={handleEventCardClick}
+              />
+            </Panel>
+          </div>
+
+          <div className="column column--right">
+            <Panel title="Match Summary" subtitle="Your best-fit pick right now.">
+              <MatchSummary score={displayScore} friends={friendObjects.map((f) => f.name)} event={activeEvent} />
+            </Panel>
+
+            <Panel title="Curated Plan" subtitle="Top ranked ideas generated for your group.">
+              <PlanPanel result={result} loading={loading} />
+            </Panel>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function SimilarityOrb({ score, friends }: { score: number; friends: string[] }) {
-  const degree = Math.max(0, Math.min(100, score)) * 3.6;
-  const style = {
-    ["--meter-deg" as any]: `${degree}deg`,
-  } as CSSProperties;
+type PanelProps = {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+};
 
-  const friendAngles = friends.length
-    ? friends.map((_, idx) => (idx / friends.length) * 360)
-    : [0, 120, 240];
+function Panel({ title, subtitle, action, children }: PanelProps) {
+  return (
+    <section className="panel">
+      <div className="panel__header">
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {action ? <div className="panel__action">{action}</div> : null}
+      </div>
+      <div className="panel__body">{children}</div>
+    </section>
+  );
+}
+
+type GroupFormProps = {
+  query: string;
+  locationHint: string;
+  timeWindow: string;
+  vibeHint: string;
+  budgetCap: string;
+  distanceKm: string;
+  customLikes: string;
+  customTags: string;
+  setQuery: (value: string) => void;
+  setLocationHint: (value: string) => void;
+  setTimeWindow: (value: string) => void;
+  setVibeHint: (value: string) => void;
+  setBudgetCap: (value: string) => void;
+  setDistanceKm: (value: string) => void;
+  setCustomLikes: (value: string) => void;
+  setCustomTags: (value: string) => void;
+  loading: boolean;
+  error: string | null;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  lastContext: LastContext | null;
+};
+
+function GroupForm({
+  query,
+  locationHint,
+  timeWindow,
+  vibeHint,
+  budgetCap,
+  distanceKm,
+  customLikes,
+  customTags,
+  setQuery,
+  setLocationHint,
+  setTimeWindow,
+  setVibeHint,
+  setBudgetCap,
+  setDistanceKm,
+  setCustomLikes,
+  setCustomTags,
+  loading,
+  error,
+  onSubmit,
+  lastContext,
+}: GroupFormProps) {
+  return (
+    <form className="group-form" onSubmit={onSubmit}>
+      {error && <div className="inline-error">{error}</div>}
+      <div className="field">
+        <label htmlFor="group-query">What are you in the mood for?</label>
+        <textarea
+          id="group-query"
+          value={query}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuery(e.target.value)}
+          placeholder="e.g. Outdoor hangs under $25 with live music after sunset."
+          rows={4}
+        />
+      </div>
+
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="group-location">Location</label>
+          <input
+            id="group-location"
+            value={locationHint}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocationHint(e.target.value)}
+            placeholder="City or neighborhood"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="group-time">Time window</label>
+          <input
+            id="group-time"
+            value={timeWindow}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimeWindow(e.target.value)}
+            placeholder="Tonight 6-10pm"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="group-vibe">Vibe (optional)</label>
+          <input
+            id="group-vibe"
+            value={vibeHint}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVibeHint(e.target.value)}
+            placeholder="e.g. outdoors, live music"
+          />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="group-budget">Budget cap ($)</label>
+          <input
+            id="group-budget"
+            type="number"
+            min="0"
+            value={budgetCap}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBudgetCap(e.target.value)}
+            placeholder="20"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="group-distance">Distance (km)</label>
+          <input
+            id="group-distance"
+            type="number"
+            min="0"
+            value={distanceKm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDistanceKm(e.target.value)}
+            placeholder="5"
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label htmlFor="group-likes">Shared likes</label>
+        <input
+          id="group-likes"
+          value={customLikes}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomLikes(e.target.value)}
+          placeholder="Comma separated e.g. live music, rooftops, art walk"
+        />
+        <small>Use commas to separate interests.</small>
+      </div>
+
+      <div className="field">
+        <label htmlFor="group-tags">Must-haves & constraints</label>
+        <input
+          id="group-tags"
+          value={customTags}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomTags(e.target.value)}
+          placeholder="Comma separated e.g. outdoor, dog friendly, budget"
+        />
+      </div>
+
+      <div className="form-actions">
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? "Curating plan…" : "Generate plan"}
+        </button>
+      </div>
+
+      {lastContext && (
+        <div className="form-context">
+          <span className="form-context__label">Last run</span>
+          <div className="chip-row">
+            <ContextChip label={`${lastContext.location}`} />
+            <ContextChip label={`${lastContext.time}`} />
+            {lastContext.vibeHint ? <ContextChip label={lastContext.vibeHint} /> : null}
+            {lastContext.budget ? <ContextChip label={`≤ $${lastContext.budget}`} tone="neutral" /> : null}
+            {lastContext.distance ? <ContextChip label={`≤ ${lastContext.distance} km`} tone="neutral" /> : null}
+          </div>
+        </div>
+      )}
+    </form>
+  );
+}
+
+type FriendPreferencesProps = {
+  friends: FriendConfig[];
+  selectedFriends: string[];
+  activeFriendId: string | null;
+  onSelectFriend: (id: string | null) => void;
+  onToggleFriend: (id: string) => void;
+  friendInputs: Record<string, FriendInputState>;
+  onFriendFieldChange: (id: string, field: keyof FriendInputState, value: string) => void;
+};
+
+function FriendPreferences({
+  friends,
+  selectedFriends,
+  activeFriendId,
+  onSelectFriend,
+  onToggleFriend,
+  friendInputs,
+  onFriendFieldChange,
+}: FriendPreferencesProps) {
+  const activeFriend = friends.find((friend) => friend.id === activeFriendId) ?? null;
 
   return (
-    <div className="orb" style={style}>
-      <div className="orb__glow" />
-      <div className="orb__ring" />
-      <div className="orb__content">
-        <div className="orb__score">{score}%</div>
-        <div className="orb__label">Group Match</div>
-      </div>
-      <div className="orb__friends">
-        {friends.map((name, i) => {
-          const angle = friendAngles[i] ?? 0;
-          const transform = `rotate(${angle}deg) translateY(-8.2rem) rotate(${-angle}deg)`;
-          const initials = name
+    <div className="friend-preferences">
+      <div className="friend-preferences__chips">
+        {friends.map((friend) => {
+          const isSelected = selectedFriends.includes(friend.id);
+          const isActive = activeFriendId === friend.id;
+          const initials = friend.name
             .split(" ")
             .map((s) => s[0])
             .join("")
             .slice(0, 2)
             .toUpperCase();
           return (
-            <div key={name} className="friend-node" style={{ transform }}>
-              <span>{initials}</span>
-            </div>
+            <button
+              key={friend.id}
+              type="button"
+              className={`friend-chip ${isSelected ? "friend-chip--selected" : ""} ${
+                isActive ? "friend-chip--active" : ""
+              }`}
+              onClick={() => {
+                if (!isSelected) {
+                  onToggleFriend(friend.id);
+                }
+                onSelectFriend(friend.id);
+              }}
+            >
+              <span className="friend-chip__avatar">{initials}</span>
+              <span className="friend-chip__content">
+                <strong>{friend.name}</strong>
+                <small>{friend.tags.join(" • ")}</small>
+              </span>
+              <span className="friend-chip__status">{isSelected ? "Included" : "Tap to include"}</span>
+            </button>
           );
         })}
       </div>
-    </div>
-  );
-}
 
-function OrbitingTags({ tags }: { tags: string[] }) {
-  if (tags.length === 0) return null;
-  return (
-    <div className="orbiters">
-      {tags.map((tag, idx) => {
-        const size = 160 + (idx % 4) * 26;
-        const dur = 14 + (idx % 5) * 2;
-        return (
-          <div
-            key={`${tag}-${idx}`}
-            className="orbiter"
-            style={
-              {
-                ["--orbit-size" as any]: `${size}px`,
-                ["--orbit-duration" as any]: `${dur}s`,
-              } as CSSProperties
-            }
-          >
-            <span>{tag}</span>
+      {!selectedFriends.length && <p className="empty-state">Pick at least one friend to build a plan.</p>}
+
+      {activeFriend && selectedFriends.includes(activeFriend.id) && (
+        <div className="friend-editor">
+          <div className="friend-editor__header">
+            <div>
+              <h4>{activeFriend.name}</h4>
+              <small>Edit overrides to personalize the plan.</small>
+            </div>
+            <button type="button" className="btn btn-tonal" onClick={() => onToggleFriend(activeFriend.id)}>
+              Remove
+            </button>
           </div>
-        );
-      })}
+          <div className="friend-editor__grid">
+            <label className="field">
+              <span>Likes</span>
+              <input
+                value={friendInputs[activeFriend.id]?.likes ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onFriendFieldChange(activeFriend.id, "likes", e.target.value)
+                }
+                placeholder={activeFriend.defaultLikes ?? "Comma separated e.g. escape rooms"}
+              />
+            </label>
+            <label className="field">
+              <span>Vibes</span>
+              <input
+                value={friendInputs[activeFriend.id]?.vibes ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onFriendFieldChange(activeFriend.id, "vibes", e.target.value)
+                }
+                placeholder={activeFriend.defaultVibes ?? "Comma separated e.g. cozy"}
+              />
+            </label>
+            <label className="field">
+              <span>Tags</span>
+              <input
+                value={friendInputs[activeFriend.id]?.tags ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onFriendFieldChange(activeFriend.id, "tags", e.target.value)
+                }
+                placeholder={activeFriend.tags.join(", ")}
+              />
+            </label>
+            <label className="field">
+              <span>Budget max ($)</span>
+              <input
+                type="number"
+                min="0"
+                value={friendInputs[activeFriend.id]?.budget ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onFriendFieldChange(activeFriend.id, "budget", e.target.value)
+                }
+                placeholder="Optional"
+              />
+            </label>
+            <label className="field">
+              <span>Distance max (km)</span>
+              <input
+                type="number"
+                min="0"
+                value={friendInputs[activeFriend.id]?.distance ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onFriendFieldChange(activeFriend.id, "distance", e.target.value)
+                }
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AnimatedBackdrop() {
-  return (
-    <div className="backdrop">
-      <div className="blob blob--1" />
-      <div className="blob blob--2" />
-      <div className="blob blob--3" />
-      <div className="grid-lights" />
-    </div>
-  );
-}
+type EventPanelProps = {
+  eventQuery: string;
+  eventLocation: string;
+  eventVibeFilter: string;
+  eventProvider: EventProviderOption;
+  setEventQuery: (value: string) => void;
+  setEventLocation: (value: string) => void;
+  setEventVibeFilter: (value: string) => void;
+  setEventProvider: (value: EventProviderOption) => void;
+  customLikes: string;
+  customTags: string;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  events: EventItem[];
+  eventsLoading: boolean;
+  eventsError: string | null;
+  activeEventId: string | null;
+  onSelectEvent: (event: EventItem) => void;
+};
 
-function LightSurface() {
-  return <div className="yumi-surface" />;
-}
+function EventPanel({
+  eventQuery,
+  eventLocation,
+  eventVibeFilter,
+  eventProvider,
+  setEventQuery,
+  setEventLocation,
+  setEventVibeFilter,
+  setEventProvider,
+  customLikes,
+  customTags,
+  onSubmit,
+  events,
+  eventsLoading,
+  eventsError,
+  activeEventId,
+  onSelectEvent,
+}: EventPanelProps) {
+  const likesPreview = splitList(customLikes).slice(0, 4);
+  const tagsPreview = splitList(customTags).slice(0, 4);
 
-function SidebarNav({ active, onSelect }: { active: string; onSelect: (label: string) => void }) {
-  const items = [
-    { label: "Discover", icon: "🧭" },
-    { label: "Social Network", icon: "👥" },
-    { label: "Friends", icon: "😊" },
-    { label: "Explore", icon: "🗺️" },
-    { label: "Reservations", icon: "📅" },
-    { label: "Profile", icon: "👤" },
-  ];
   return (
-    <aside className="yumi-sidebar-nav">
-      <div className="yumi-brand">Challo</div>
-      <nav>
-        {items.map((it, idx) => (
-          <button
-            key={it.label}
-            className={`yumi-nav-item ${active === it.label ? "is-active" : ""}`}
-            type="button"
-            onClick={() => onSelect(it.label)}
-          >
-            <span className="yumi-nav-icon">{it.icon}</span>
-            <span>{it.label}</span>
-          </button>
-        ))}
-      </nav>
-      <div className="yumi-nav-footer">
-        <button type="button" className="yumi-nav-item">
-          <span className="yumi-nav-icon">🔇</span>
-          <span>Mute</span>
+    <div className="event-panel">
+      <form className="event-filters" onSubmit={onSubmit}>
+        <input
+          value={eventQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventQuery(e.target.value)}
+          placeholder="Keyword or vibe"
+        />
+        <input
+          value={eventLocation}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventLocation(e.target.value)}
+          placeholder="Search location"
+        />
+        <input
+          value={eventVibeFilter}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventVibeFilter(e.target.value)}
+          placeholder="Filter by vibe"
+        />
+        <select
+          value={eventProvider}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+            setEventProvider(e.target.value as EventProviderOption)
+          }
+        >
+          <option value="all">All providers</option>
+          <option value="eventbrite">Eventbrite</option>
+          <option value="google_places">Google Places</option>
+        </select>
+        <button className="btn btn-tonal" type="submit" disabled={eventsLoading}>
+          {eventsLoading ? "Searching…" : "Refresh"}
         </button>
-        <button type="button" className="yumi-logout">Logout</button>
+      </form>
+
+      {(likesPreview.length > 0 || tagsPreview.length > 0) && (
+        <div className="chip-row">
+          {likesPreview.map((like) => (
+            <ContextChip key={`like-${like}`} label={like} />
+          ))}
+          {tagsPreview.map((tag) => (
+            <ContextChip key={`tag-${tag}`} label={tag} tone="neutral" />
+          ))}
+        </div>
+      )}
+
+      {eventsError && <div className="inline-error">{eventsError}</div>}
+      {!eventsError && eventsLoading && <p className="empty-state">Loading activities…</p>}
+      {!eventsError && !eventsLoading && events.length === 0 && (
+        <p className="empty-state">No activities matched. Try adjusting your filters.</p>
+      )}
+
+      <div className="event-list">
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} active={activeEventId === event.id} onSelect={onSelectEvent} />
+        ))}
       </div>
-    </aside>
+    </div>
+  );
+}
+
+type EventCardProps = {
+  event: EventItem;
+  active: boolean;
+  onSelect: (event: EventItem) => void;
+};
+
+function EventCard({ event, active, onSelect }: EventCardProps) {
+  const metaParts: string[] = [];
+  if (event.price) metaParts.push(event.price);
+  if (event.venue) {
+    metaParts.push(event.venue);
+  } else if (event.address) {
+    metaParts.push(event.address);
+  }
+  if (event.vibe) metaParts.push(event.vibe);
+
+  return (
+    <button
+      type="button"
+      className={`event-card ${active ? "event-card--active" : ""}`}
+      onClick={() => onSelect(event)}
+      aria-pressed={active}
+    >
+      <div className="event-card__header">
+        <span className="source-pill">{event.source}</span>
+        {event.booking_url && (
+          <a href={event.booking_url} target="_blank" rel="noreferrer">
+            View
+          </a>
+        )}
+      </div>
+      <h3>{event.title}</h3>
+      {metaParts.length > 0 && <p className="event-card__meta">{metaParts.join(" · ")}</p>}
+      {event.summary && <p className="event-card__summary">{event.summary}</p>}
+      {event.maps_url && (
+        <div className="event-card__footer">
+          <a href={event.maps_url} target="_blank" rel="noreferrer">
+            Map
+          </a>
+        </div>
+      )}
+    </button>
+  );
+}
+
+type MatchSummaryProps = {
+  score: number;
+  friends: string[];
+  event: EventItem | null;
+};
+
+function MatchSummary({ score, friends, event }: MatchSummaryProps) {
+  return (
+    <div className="match-card">
+      <ScoreMeter score={score} />
+      <div className="match-card__friends">
+        {friends.length > 0 ? (
+          friends.map((name) => <FriendBadge key={name} name={name} />)
+        ) : (
+          <p className="empty-state">Add friends to personalize the match.</p>
+        )}
+      </div>
+      <EventDetail event={event} />
+    </div>
+  );
+}
+
+function FriendBadge({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .map((s) => s[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <span className="friend-badge" title={name}>
+      {initials}
+    </span>
+  );
+}
+
+function ScoreMeter({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score));
+  const angle = (clamped / 100) * 360;
+  return (
+    <div className="score-meter" style={{ ["--score-angle" as any]: `${angle}deg` }}>
+      <div className="score-meter__ring" />
+      <div className="score-meter__inner">
+        <span className="score-meter__value">{clamped}%</span>
+        <span className="score-meter__caption">Group match</span>
+      </div>
+    </div>
+  );
+}
+
+function EventDetail({ event }: { event: EventItem | null }) {
+  if (!event) {
+    return <p className="empty-state">Select an activity to see more details.</p>;
+  }
+
+  return (
+    <div className="event-detail">
+      <div className="event-detail__title">
+        <h4>{event.title}</h4>
+        <span className="source-pill">{event.source}</span>
+      </div>
+      {(event.venue || event.address || event.price) && (
+        <p className="event-detail__meta">
+          {[event.venue || event.address, event.price].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      {event.summary && <p className="event-detail__summary">{event.summary}</p>}
+      <div className="link-row">
+        {event.booking_url && (
+          <a href={event.booking_url} target="_blank" rel="noreferrer">
+            Event details
+          </a>
+        )}
+        {event.maps_url && (
+          <a href={event.maps_url} target="_blank" rel="noreferrer">
+            Open map
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PlanPanel({ result, loading }: { result: PlanResponse | null; loading: boolean }) {
+  if (loading && !result) {
+    return <p className="empty-state">Generating plan…</p>;
+  }
+
+  if (!result || result.candidates.length === 0) {
+    return <p className="empty-state">Generate a plan to see curated suggestions.</p>;
+  }
+
+  return (
+    <div className="plan-panel">
+      <ul className="plan-list">
+        {result.candidates.map((card) => {
+          const distanceLabel =
+            typeof card.distance_km === "number" ? `${card.distance_km.toFixed(1)} km` : null;
+          return (
+            <li key={`${card.title}-${card.source}`} className="plan-item">
+              <div className="plan-item__header">
+                <h4>{card.title}</h4>
+                <span className="plan-item__score">{Math.round(card.group_score * 100)}%</span>
+              </div>
+              <div className="plan-item__meta">
+                {card.vibe && <ContextChip label={card.vibe} />}
+                {card.price && <ContextChip label={card.price} tone="neutral" />}
+                {distanceLabel ? <ContextChip label={distanceLabel} tone="neutral" /> : null}
+                <ContextChip label={card.source} tone="soft" />
+              </div>
+              {card.summary && <p className="plan-item__summary">{card.summary}</p>}
+              {card.reasons?.length ? (
+                <ul className="bullet-list">
+                  {card.reasons.map((reason, idx) => (
+                    <li key={`${card.title}-reason-${idx}`}>{reason}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="plan-item__footer">
+                {card.booking_url && (
+                  <a href={card.booking_url} target="_blank" rel="noreferrer">
+                    Details
+                  </a>
+                )}
+                {card.maps_url && (
+                  <a href={card.maps_url} target="_blank" rel="noreferrer">
+                    Map
+                  </a>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {result.action_log?.length ? (
+        <div className="action-log">
+          {result.action_log.map((entry, idx) => (
+            <span key={`log-${idx}`}>{entry}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -399,13 +997,14 @@ function LocationChip({
   onSubmit,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   onSubmit: () => void;
 }) {
   return (
-    <div className="yumi-location">
+    <div className="location-chip">
+      <span className="location-chip__icon">📍</span>
       <input
-        className="yumi-location__input"
+        className="location-chip__input"
         value={value}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -414,574 +1013,16 @@ function LocationChip({
             onSubmit();
           }
         }}
+        aria-label="Update event search location"
       />
-      <span className="yumi-caret">⌄</span>
-    </div>
-  );
-}
-
-function CenterRecommendations({
-  score,
-  friends,
-  events,
-  activeId,
-  onEventClick,
-  loading,
-}: {
-  score: number;
-  friends: string[];
-  events: EventItem[];
-  activeId: string | null;
-  onEventClick: (e: EventItem) => void;
-  loading: boolean;
-}) {
-  const topEvents = useMemo(() => events.slice(0, 16), [events]);
-  const [included, setIncluded] = useState<string[]>([]);
-  const toggleInclude = (name: string) =>
-    setIncluded((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
-  return (
-    <section className="yumi-center">
-      <SimilarityOrb score={score} friends={friends} />
-      <div className="orbit-ring orbit-ring--activities" style={{ ["--count" as any]: topEvents.length, ["--dur" as any]: "36s" }}>
-        {topEvents.map((e: EventItem, i: number) => {
-          const active = activeId === e.id;
-          return (
-            <button
-              key={e.id}
-              type="button"
-              className={`orbit-item orbit-item--card ${active ? "is-active" : ""}`}
-              style={{ ["--index" as any]: i }}
-              onClick={() => onEventClick(e)}
-              title={e.title}
-            >
-              <div className="orbit-item__inner">
-                <div className="yumi-card__thumb" aria-hidden="true">
-                  <span>{e.title.slice(0, 1)}</span>
-                </div>
-                <span className="yumi-card__title">{e.title}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <div className="orbit-ring orbit-ring--friends" style={{ ["--count" as any]: friends.length, ["--dur" as any]: "28s" }}>
-        {friends.map((name: string, i: number) => {
-          const initial = name.slice(0, 1).toUpperCase();
-          const isIncluded = included.includes(name);
-          return (
-            <button
-              key={name}
-              type="button"
-              className={`orbit-item orbit-item--friend ${isIncluded ? "is-included" : ""}`}
-              style={{ ["--index" as any]: i }}
-              onClick={() => toggleInclude(name)}
-              title={name}
-            >
-              <div className="orbit-item__inner">
-                <div className="friend-node"><span>{initial}</span></div>
-                {isIncluded && <span className="included-pill">Included</span>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      {loading && <div className="yumi-loading">Finalizing recommendations</div>}
-    </section>
-  );
-}
-
-function HorizontalPicker({
-  friends,
-  events,
-  onGenerate,
-  onEventClick,
-  loading,
-}: {
-  friends: string[];
-  events: EventItem[];
-  onGenerate: (e: FormEvent<HTMLFormElement>) => void;
-  onEventClick: (e: EventItem) => void;
-  loading: boolean;
-}) {
-  const containerRef = React.useRef(null as HTMLDivElement | null);
-  const trackRef = React.useRef(null as HTMLDivElement | null);
-  const [paused, setPaused] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const getEventImage = (e: EventItem): string => {
-    // Dummy image placeholder: deterministic per id/title so the grid looks consistent.
-    const seed = encodeURIComponent((e as any).id || (e as any).title || "activity");
-    return `https://picsum.photos/seed/${seed}/200/200`;
-  };
-
-  const placeholders = useMemo(
-    () =>
-      Array.from({ length: 12 }).map((_, i) => ({
-        id: `ph-${i}`,
-        title: ["Street Fair", "Live Jazz", "Beltline Ride", "Picnic in the Park", "Museum Night", "Food Hall", "Arcade Run", "Board Games", "Comedy Show", "Sunset Point"][i % 10],
-        source: "mock",
-      })) as any[],
-    []
-  );
-
-  const items: Array<EventItem & { image?: string }> = useMemo(() => {
-    const list = (events.length ? events : (placeholders as any)) as EventItem[];
-    return list.map((e) => ({ ...(e as any), image: getEventImage(e) }));
-  }, [events, placeholders]);
-
-  const pickBest = useCallback(() => {
-    // Very simple interest overlap score using title + vibes/tags strings
-    const interestTerms = new Set<string>(
-      [
-        ...splitList("music, outdoors, creative, cozy, party, social"),
-      ].map((t) => t.toLowerCase())
-    );
-    let best: { id: string; score: number } | null = null;
-    items.forEach((ev) => {
-      const hay = [ev.title, ev.summary || "", ev.venue || "", (ev as any).vibes?.join(" ") || "", (ev as any).tags?.join(" ") || ""]
-        .join(" ")
-        .toLowerCase();
-      let s = 0;
-      interestTerms.forEach((t) => {
-        if (hay.includes(t)) s += 1;
-      });
-      if (!best || s > best.score) {
-        best = { id: ev.id, score: s };
-      }
-    });
-    const fallbackId = (items.map((e) => e.id)[0] as string | undefined) ?? null;
-    // @ts-ignore - shim environment may lose EventItem types; in real build React types resolve
-    return best ? best.id : fallbackId;
-  }, [items]);
-
-  const centerOn = useCallback((id: string) => {
-    if (!containerRef.current || !trackRef.current) return;
-    const container = containerRef.current.getBoundingClientRect();
-    const el = trackRef.current.querySelector(`[data-id="${id}"]`) as HTMLButtonElement | null;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const delta = rect.left + rect.width / 2 - (container.left + container.width / 2);
-    const current = getComputedStyle(trackRef.current).transform;
-    let currentX = 0;
-    if (current && current !== "none") {
-      const m = new DOMMatrix(current);
-      currentX = m.m41;
-    }
-    const targetX = currentX - delta;
-    trackRef.current.style.transition = "transform 1200ms cubic-bezier(.22,1,.36,1)";
-    trackRef.current.style.transform = `translateX(${targetX}px)`;
-  }, []);
-
-  function handleSpin() {
-    const id = pickBest();
-    if (!id) return;
-    setSelectedId(id);
-    setPaused(true);
-    window.setTimeout(() => {
-      centerOn(id);
-    }, 60);
-  }
-
-  return (
-    <section className="yumi-center">
-      <div className="friends-row">
-        {friends.map((name) => {
-          const initial = name.slice(0, 1).toUpperCase();
-          return (
-            <div key={name} className="friend-avatar">
-              <div className="friend-avatar__img">{initial}</div>
-              <div className="friend-avatar__name">{name}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="belt" ref={containerRef}>
-        <div className="mini-orb">
-          <div className="mini-orb__glow" />
-        </div>
-        <div
-          ref={trackRef}
-          className={`belt__track ${paused ? "is-paused" : ""}`}
-          style={{ ["--belt-speed" as any]: "40s" }}
-        >
-          {items.concat(items).map((e: EventItem & { image?: string }, idx: number) => (
-            <button
-              key={`${e.id}-${idx}`}
-              data-id={e.id}
-              type="button"
-              className={`belt-card ${selectedId === e.id ? "is-selected" : ""}`}
-              onClick={() => onEventClick(e)}
-              title={e.title}
-            >
-              <img className="belt-card__img" src={e.image || getEventImage(e)} alt={e.title} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="picker-actions">
-        <button className="primary" type="button" onClick={handleSpin} disabled={loading}>
-          {loading ? "Curating..." : "Generate Plan"}
-        </button>
-      </div>
-
-      {loading && <div className="yumi-loading">Finalizing recommendations</div>}
-    </section>
-  );
-}
-
-function ChatBar({
-  value,
-  onChange,
-  onSubmit,
-  loading,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  loading: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <form className="yumi-chatbar" onSubmit={onSubmit}>
-      <button type="button" className="yumi-chatbar__icon" aria-label="Attachments">📎</button>
-      <input
-        value={value}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-        placeholder={placeholder || "AI is thinking..."}
-      />
-      <button className="yumi-send" disabled={loading} aria-label="Send">
-        ➤
+      <button type="button" className="location-chip__button" onClick={onSubmit}>
+        Update
       </button>
-    </form>
-  );
-}
-
-type YumiLayoutProps = {
-  query: string;
-  setQuery: (v: string) => void;
-  locationHint: string;
-  setLocationHint: (v: string) => void;
-  timeWindow: string;
-  setTimeWindow: (v: string) => void;
-  vibeHint: string;
-  setVibeHint: (v: string) => void;
-  customLikes: string;
-  setCustomLikes: (v: string) => void;
-  customTags: string;
-  setCustomTags: (v: string) => void;
-  selectedFriends: string[];
-  toggleFriend: (id: string) => void;
-  friends: typeof FRIENDS;
-  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  loading: boolean;
-  events: EventItem[];
-  eventsLoading: boolean;
-  eventsError: string | null;
-  setEventQuery: (v: string) => void;
-  setEventLocation: (v: string) => void;
-  setEventVibeFilter: (v: string) => void;
-  handleEventSearchSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  result: PlanResponse | null;
-  displayScore: number;
-  onEventClick: (event: EventItem) => void;
-};
-
-function YumiLayout(props: YumiLayoutProps) {
-  const {
-    query,
-    setQuery,
-    locationHint,
-    setLocationHint,
-    timeWindow,
-    setTimeWindow,
-    vibeHint,
-    setVibeHint,
-    customLikes,
-    setCustomLikes,
-    customTags,
-    setCustomTags,
-    selectedFriends,
-    toggleFriend,
-    friends,
-    onSubmit,
-    loading,
-    events,
-    eventsLoading,
-    eventsError,
-    setEventQuery,
-    setEventLocation,
-    setEventVibeFilter,
-    handleEventSearchSubmit,
-    result,
-    displayScore,
-    onEventClick,
-  } = props;
-
-  const defaultHobbies = useMemo(
-    () => [
-      "live music",
-      "board games",
-      "hiking",
-      "coffee tasting",
-      "museum",
-      "karaoke",
-      "photography",
-      "yoga",
-      "coding jam",
-      "kayaking",
-      "escape room",
-      "arcade",
-    ],
-    []
-  );
-
-  const initialSelected = useMemo(() => splitList(customLikes).slice(0, 6), [customLikes]);
-  const [plateSelected, setPlateSelected] = useState<string[]>(initialSelected);
-
-  useEffect(() => {
-    setCustomLikes(plateSelected.join(", "));
-  }, [plateSelected, setCustomLikes]);
-
-  const suggestionSet = useMemo(() => {
-    const extra = [
-      ...splitList(customTags),
-      ...friends.flatMap((f) => splitList(f.defaultLikes ?? "")),
-    ];
-    return Array.from(new Set([...defaultHobbies, ...extra])).slice(0, 24);
-  }, [customTags, defaultHobbies, friends]);
-
-  const friendNames = friends
-    .filter((f) => selectedFriends.includes(f.id))
-    .map((f) => f.name);
-
-  return (
-    <div className="yumi-layout">
-      <aside className="yumi-sidebar panel">
-        <header className="yumi-section-header">
-          <h3>Hobby Plate</h3>
-          <small>Pick up to 6 hobbies</small>
-        </header>
-        <HobbyPlate
-          selected={plateSelected}
-          onToggle={(tag: string) =>
-            setPlateSelected((prev: string[]) =>
-              prev.includes(tag)
-                ? prev.filter((t: string) => t !== tag)
-                : prev.length < 6
-                ? [...prev, tag]
-                : prev
-            )
-          }
-        />
-        <div className="chip-cloud">
-          {suggestionSet.map((tag: string) => {
-            const active = plateSelected.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                className={`chip ${active ? "chip--active" : ""}`}
-                onClick={() =>
-                  setPlateSelected((prev: string[]) =>
-                    prev.includes(tag)
-                      ? prev.filter((t: string) => t !== tag)
-                      : prev.length < 6
-                      ? [...prev, tag]
-                      : prev
-                  )
-                }
-              >
-                {tag}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="yumi-subsection">
-          <h4>Friends</h4>
-          <div className="friend-chips">
-            {friends.map((friend) => {
-              const active = selectedFriends.includes(friend.id);
-              return (
-                <button
-                  key={friend.id}
-                  type="button"
-                  className={`friend-chip ${active ? "friend-chip--active" : ""}`}
-                  onClick={() => toggleFriend(friend.id)}
-                >
-                  <span>{friend.name}</span>
-                  <small>{friend.tags.join(" · ")}</small>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </aside>
-
-      <main className="yumi-main">
-        <form className="yumi-search panel" onSubmit={onSubmit}>
-          <input
-            value={query}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="What vibe are you going for? e.g., outdoorsy music near Cambridge under $20"
-          />
-          <div className="search-row">
-            <input
-              value={locationHint}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocationHint(e.target.value)}
-              placeholder="Location"
-            />
-            <input
-              value={timeWindow}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimeWindow(e.target.value)}
-              placeholder="Time window"
-            />
-            <input
-              value={vibeHint}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVibeHint(e.target.value)}
-              placeholder="Vibe (optional)"
-            />
-            <button className="primary" type="submit" disabled={loading}>
-              {loading ? "Curating..." : "Explore Activities"}
-            </button>
-          </div>
-        </form>
-
-        <section className="panel">
-          <header className="yumi-section-header">
-            <h3>Activity Places</h3>
-            <small>From Eventbrite and Google Places</small>
-          </header>
-
-          <form className="yumi-event-filters" onSubmit={handleEventSearchSubmit}>
-            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventQuery(e.target.value)} placeholder="Keyword" />
-            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventLocation(e.target.value)} placeholder="Location" />
-            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventVibeFilter(e.target.value)} placeholder="Vibe" />
-            <button type="submit" disabled={eventsLoading}>
-              {eventsLoading ? "..." : "Refresh"}
-            </button>
-          </form>
-
-          {eventsError && <div className="inline-error">{eventsError}</div>}
-          {!eventsError && eventsLoading && <p className="placeholder">Loading events...</p>}
-          {!eventsError && !eventsLoading && events.length === 0 && (
-            <p className="placeholder">No events matched. Try new keywords.</p>
-          )}
-
-          <ActivityGrid events={events} onClick={onEventClick} />
-        </section>
-      </main>
-
-      <aside className="yumi-rightbar">
-        <div className="panel yumi-orb">
-          <SimilarityOrb score={displayScore} friends={friendNames} />
-        </div>
-
-        <div className="panel">
-          <header className="yumi-section-header">
-            <h3>Curated Plan</h3>
-            <small>Best-fit picks for your group</small>
-          </header>
-          {!result && <p className="placeholder">Run a search to see curated picks.</p>}
-          {result && (
-            <ul className="plan-grid">
-              {result.candidates.map((card) => (
-                <li key={card.title} className="plan-card">
-                  <div className="plan-card__head">
-                    <strong>{card.title}</strong>
-                    <span className="score">{Math.round(card.group_score * 100)}%</span>
-                  </div>
-                  <p className="plan-card__meta">
-                    {card.price ? card.price : "—"} ·{" "}
-                    {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
-                    <span className="source-pill">{card.source}</span>
-                  </p>
-                  {card.summary && <p className="summary-text">{card.summary}</p>}
-                  <div className="links">
-                    {card.booking_url && (
-                      <a href={card.booking_url} target="_blank" rel="noreferrer">
-                        Event
-                      </a>
-                    )}
-                    {card.maps_url && (
-                      <a href={card.maps_url} target="_blank" rel="noreferrer">
-                        Map
-                      </a>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </aside>
     </div>
   );
 }
 
-function HobbyPlate({
-  selected,
-  onToggle,
-}: {
-  selected: string[];
-  onToggle: (tag: string) => void;
-}) {
-  const slots = Array.from({ length: 6 });
-  return (
-    <div className="hobby-plate">
-      <div className="plate-base" />
-      {slots.map((_, i) => {
-        const tag = selected[i];
-        const angle = (i / slots.length) * 360;
-        const transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-80px) rotate(${-angle}deg)`;
-        return (
-          <button
-            key={i}
-            type="button"
-            className={`plate-slot ${tag ? "plate-slot--filled" : ""}`}
-            style={{ transform }}
-            onClick={() => tag && onToggle(tag)}
-            title={tag || "Empty slot"}
-          >
-            <span>{tag ? tag : "+"}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ActivityGrid({
-  events,
-  onClick,
-}: {
-  events: EventItem[];
-  onClick: (event: EventItem) => void;
-}) {
-  return (
-    <div className="activity-grid">
-      {events.map((e: EventItem) => (
-        <button key={e.id} type="button" className="activity-card" onClick={() => onClick(e)}>
-          <div className="activity-card__head">
-            <span className="activity-title">{e.title}</span>
-            <span className="source-pill">{e.source}</span>
-          </div>
-          <span className="activity-meta">{e.venue ?? e.address ?? "TBA"} · {e.price ?? "—"}</span>
-          {e.vibes?.length ? (
-            <div className="tag-chip-row">
-              {e.vibes.slice(0, 3).map((v) => (
-                <span className="tag-chip" key={v}>
-                  {v}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </button>
-      ))}
-    </div>
-  );
+function ContextChip({ label, tone = "primary" }: { label: string; tone?: "primary" | "neutral" | "soft" }) {
+  return <span className={`context-chip context-chip--${tone}`}>{label}</span>;
 }
 

@@ -3,7 +3,13 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 from .prompts import SYSTEM_LISTENER, SYSTEM_PLANNER, SYSTEM_WRITER
+<<<<<<< HEAD
 from .schemas import UserTaste, PlanCard
+=======
+from pydantic import ValidationError
+
+from .schemas import UserTaste, PlanCard, FriendOverride
+>>>>>>> bb072dd (Refresh event planner UI and backend overrides)
 from .tools import tool_get_user_taste, tool_merge_tastes, tool_find_activities
 
 def llm_json(prompt: str, system: str) -> Dict[str, Any]:
@@ -66,13 +72,33 @@ class PlannerAgent:
         time_window: Optional[str],
         request_overrides: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+<<<<<<< HEAD
         # 1) fetch tastes
         tastes = [tool_get_user_taste(uid) for uid in user_ids]
+=======
+        overrides = request_overrides or {}
+
+        friend_override_map: Dict[str, FriendOverride] = {}
+        for override in overrides.get("friend_overrides") or []:
+            try:
+                payload = FriendOverride(**override)
+            except ValidationError:
+                continue
+            friend_override_map[payload.user_id] = payload
+
+        # 1) fetch tastes (respect overrides when provided)
+        overrides_arg = friend_override_map or None
+        tastes = [tool_get_user_taste(uid, overrides=overrides_arg) for uid in user_ids]
+
+>>>>>>> bb072dd (Refresh event planner UI and backend overrides)
         # 2) merge constraints and preferences
         merged = tool_merge_tastes(tastes)
         merged["location"] = location_hint
         merged["time_window"] = time_window or listener_out.get("time_hint")
+<<<<<<< HEAD
         overrides = request_overrides or {}
+=======
+>>>>>>> bb072dd (Refresh event planner UI and backend overrides)
         if overrides.get("budget_cap") is not None:
             merged["budget_cap"] = overrides["budget_cap"]
         if overrides.get("distance_km") is not None:
