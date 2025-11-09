@@ -1,19 +1,5 @@
 import React from "react";
-import { ActivityResult } from "../lib/api";
-
-type MatchBreakdown = {
-  overall: number;
-  prompt: number;
-  friends: Array<{
-    id: string;
-    name: string;
-    score: number;
-  }>;
-};
-
-type ActivityWithMatch = ActivityResult & {
-  match: MatchBreakdown;
-};
+import type { ActivityWithMatch } from "../App";
 
 type ActivityPanelProps = {
   activities: ActivityWithMatch[];

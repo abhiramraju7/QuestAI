@@ -23,7 +23,9 @@ type HeroProps = {
   onFormChange: (field: keyof FormState, value: string) => void;
   onSuggestion: (text: string) => void;
   onReset: () => void;
-  onFriendChange: (id: string, likes: string) => void;
+  onFriendChange: (id: string, updates: Partial<FriendProfile>) => void;
+  onAddFriend: () => void;
+  onRemoveFriend: (id: string) => void;
 };
 
 export function Hero({
@@ -38,6 +40,8 @@ export function Hero({
   onSuggestion,
   onReset,
   onFriendChange,
+  onAddFriend,
+  onRemoveFriend,
 }: HeroProps) {
   return (
     <section className="hero-grid">
@@ -126,18 +130,40 @@ export function Hero({
         <h3>Who’s coming?</h3>
         <p>Fine-tune the blend by tweaking each friend’s vibe list. Separate likes with commas.</p>
         <ul className="friend-editor">
-          {friends.map((friend) => (
+          {friends.map((friend) => {
+            const disableRemove = friends.length <= 1;
+            return (
             <li key={friend.id} className="friend-editor__item">
-              <span className="friend-editor__tag">{friend.name}</span>
+              <div className="friend-editor__row">
+                <input
+                  value={friend.name}
+                  onChange={(event) => onFriendChange(friend.id, { name: event.target.value })}
+                  placeholder="Name"
+                />
+                <button
+                  type="button"
+                  className="friend-editor__remove"
+                  onClick={() => onRemoveFriend(friend.id)}
+                  disabled={disableRemove}
+                  aria-label={`Remove ${friend.name || "friend"}`}
+                >
+                  ×
+                </button>
+              </div>
               <textarea
                 value={friend.likes}
-                onChange={(event) => onFriendChange(friend.id, event.target.value)}
+                onChange={(event) => onFriendChange(friend.id, { likes: event.target.value })}
                 rows={2}
                 spellCheck={false}
+                placeholder="karaoke, rooftop bars, live music"
               />
             </li>
-          ))}
+          );
+          })}
         </ul>
+        <button type="button" className="btn btn--ghost friend-editor__add" onClick={onAddFriend}>
+          Add friend
+        </button>
       </div>
     </section>
   );

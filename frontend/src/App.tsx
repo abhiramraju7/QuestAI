@@ -27,7 +27,7 @@ type MatchBreakdown = {
   }>;
 };
 
-type ActivityWithMatch = ActivityResult & {
+export type ActivityWithMatch = ActivityResult & {
   match: MatchBreakdown;
 };
 
@@ -45,17 +45,24 @@ const SUGGESTIONS = [
   "Trampoline park party",
 ];
 
-const DEFAULT_FRIENDS: FriendProfile[] = [
-  { id: "alex", name: "Alex", likes: "karaoke, nightlife, late-night food" },
-  { id: "maya", name: "Maya", likes: "arcades, live music, mocktails" },
-  { id: "jordan", name: "Jordan", likes: "outdoors, food trucks, pop-ups" },
-  { id: "sasha", name: "Sasha", likes: "speakeasies, jazz, small plates" },
-  { id: "liam", name: "Liam", likes: "sports bars, trivia nights, craft beer" },
-];
+function createFriend(overrides: Partial<FriendProfile> = {}): FriendProfile {
+  const id =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `friend-${Math.random().toString(36).slice(2, 9)}`;
+  return {
+    id,
+    name: "",
+    likes: "",
+    ...overrides,
+  };
+}
+
+const INITIAL_FRIENDS: FriendProfile[] = [createFriend({ name: "Friend 1" }), createFriend({ name: "Friend 2" })];
 
 export default function App() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
-  const [friends, setFriends] = useState<FriendProfile[]>(DEFAULT_FRIENDS);
+  const [friends, setFriends] = useState<FriendProfile[]>(INITIAL_FRIENDS);
   const [activities, setActivities] = useState<ActivityWithMatch[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityWithMatch | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,10 +82,12 @@ export default function App() {
       const budget = form.budget_cap ? Number(form.budget_cap) : undefined;
       const friendPayload = friends.reduce<Record<string, { likes: string[] }>>((acc, friend) => {
         const likes = friend.likes
-          .split(",")
+          .split(/[,;\n]/)
           .map((item) => item.trim())
           .filter(Boolean);
-        acc[friend.id] = { likes };
+        if (likes.length > 0) {
+          acc[friend.id] = { likes };
+        }
         return acc;
       }, {});
 
@@ -111,7 +120,7 @@ export default function App() {
 
       const scored = results.map<ActivityWithMatch>((activity) => ({
         ...activity,
-        match: computeMatchScores(activity, form.query_text, friends),
+        match: computeMatchScores(activity, form.query_text, agentKeywords, friends),
       }));
 
       setActivities(scored);
@@ -150,13 +159,25 @@ export default function App() {
 
   function handleReset() {
     setForm(DEFAULT_FORM);
-    setFriends(DEFAULT_FRIENDS);
+    setFriends(INITIAL_FRIENDS.map((friend, index) => createFriend({ name: friend.name || `Friend ${index + 1}` })));
     setActivities([]);
     setSelectedActivity(null);
     setError(null);
     setHasSearched(false);
     setAgentSummary(null);
     setAgentKeywords([]);
+  }
+
+  function handleFriendChange(id: string, updates: Partial<FriendProfile>) {
+    setFriends((prev) => prev.map((friend) => (friend.id === id ? { ...friend, ...updates } : friend)));
+  }
+
+  function handleAddFriend() {
+    setFriends((prev) => [...prev, createFriend({ name: `Friend ${prev.length + 1}` })]);
+  }
+
+  function handleRemoveFriend(id: string) {
+    setFriends((prev) => (prev.length <= 1 ? prev : prev.filter((friend) => friend.id !== id)));
   }
 
   return (
@@ -173,9 +194,9 @@ export default function App() {
           onFormChange={(field, value) => setForm((prev) => ({ ...prev, [field]: value }))}
           onSuggestion={handleSuggestionClick}
           onReset={handleReset}
-          onFriendChange={(id, likes) =>
-            setFriends((prev) => prev.map((friend) => (friend.id === id ? { ...friend, likes } : friend)))
-          }
+          onFriendChange={handleFriendChange}
+          onAddFriend={handleAddFriend}
+          onRemoveFriend={handleRemoveFriend}
         />
 
         <main className="panels">
@@ -197,42 +218,134 @@ export default function App() {
   );
 }
 
-function computeMatchScores(activity: ActivityResult, prompt: string, friends: FriendProfile[]): MatchBreakdown {
-  const corpus = buildCorpus(activity);
-  const promptTokens = tokenize(prompt);
-  const promptScore = similarityScore(promptTokens, corpus);
+type Haystack = {
+  raw: string;
+  tokens: Set<string>;
+};
 
-  const friendScores = friends.map(({ id, name, likes }) => {
-    const tokens = tokenize(likes);
-    return {
-      id,
-      name,
-      score: similarityScore(tokens, corpus),
-    };
-  });
+function computeMatchScores(
+  activity: ActivityResult,
+  prompt: string,
+  agentKeywords: string[],
+  friends: FriendProfile[]
+): MatchBreakdown {
+  const haystack = buildHaystack(activity, agentKeywords);
+  const promptScore = phraseSimilarity(prompt, haystack);
 
+  const friendMatches = friends
+    .map(({ id, name, likes }, index) => {
+      const score = phraseSimilarity(likes, haystack);
+      return {
+        id,
+        name: name.trim() || `Friend ${index + 1}`,
+        likes: likes.trim(),
+        score,
+      };
+    })
+    .filter((friend) => friend.likes.length > 0)
+    .map(({ likes: _likes, ...rest }) => rest);
+
+  const denominator = friendMatches.length + 1;
   const overall =
-    (promptScore + friendScores.reduce((sum, friend) => sum + friend.score, 0)) / (friendScores.length + 1 || 1);
+    denominator > 0
+      ? clampScore((promptScore + friendMatches.reduce((sum, friend) => sum + friend.score, 0)) / denominator)
+      : promptScore;
 
   return {
     overall,
     prompt: promptScore,
-    friends: friendScores,
+    friends: friendMatches,
   };
 }
 
-function buildCorpus(activity: ActivityResult): Set<string> {
-  const parts = [
+function buildHaystack(activity: ActivityResult, agentKeywords: string[]): Haystack {
+  const raw = [
     activity.title,
     activity.summary,
     activity.address,
     activity.price,
     activity.tags?.join(" "),
+    agentKeywords.join(" "),
   ]
     .flat()
     .filter(Boolean)
-    .join(" ");
-  return tokenize(parts);
+    .join(" ")
+    .toLowerCase();
+
+  return {
+    raw,
+    tokens: tokenize(raw),
+  };
+}
+
+function phraseSimilarity(phrase: string, haystack: Haystack): number {
+  const fragments = splitFragments(phrase);
+  if (fragments.length === 0) {
+    return 0;
+  }
+
+  let counted = 0;
+  let total = 0;
+
+  for (const fragment of fragments) {
+    const tokens = tokenize(fragment);
+    if (tokens.size === 0) {
+      continue;
+    }
+    counted += 1;
+
+    let matches = 0;
+    tokens.forEach((token) => {
+      if (matchesToken(token, haystack)) {
+        matches += 1;
+      }
+    });
+
+    const fragmentScore = matches / tokens.size || 0;
+    total += fragmentScore;
+  }
+
+  if (counted === 0) {
+    return 0;
+  }
+
+  const average = total / counted;
+  if (average === 0) {
+    return 0.05;
+  }
+
+  return clampScore(average);
+}
+
+function splitFragments(text: string): string[] {
+  if (!text) {
+    return [];
+  }
+  return text
+    .split(/[,;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function matchesToken(token: string, haystack: Haystack): boolean {
+  if (!token) {
+    return false;
+  }
+
+  if (haystack.tokens.has(token)) {
+    return true;
+  }
+
+  if (haystack.raw.includes(token)) {
+    return true;
+  }
+
+  const stem = stemToken(token);
+  if (stem && (haystack.tokens.has(stem) || haystack.raw.includes(stem))) {
+    return true;
+  }
+
+  return false;
 }
 
 function tokenize(value: string | null | undefined): Set<string> {
@@ -248,16 +361,26 @@ function tokenize(value: string | null | undefined): Set<string> {
   );
 }
 
-function similarityScore(tokens: Set<string>, corpus: Set<string>): number {
-  if (!tokens.size || !corpus.size) {
-    return 0;
+function stemToken(token: string): string | null {
+  if (token.length <= 4) {
+    return null;
   }
-  let matches = 0;
-  tokens.forEach((token) => {
-    if (corpus.has(token)) {
-      matches += 1;
+  const rules: Array<[string, string]> = [
+    ["ing", ""],
+    ["ers", ""],
+    ["er", ""],
+    ["ies", "y"],
+    ["s", ""],
+  ];
+  for (const [suffix, replacement] of rules) {
+    if (token.endsWith(suffix)) {
+      return token.slice(0, -suffix.length) + replacement;
     }
-  });
-  return Math.min(matches / Math.max(tokens.size, 1), 1);
+  }
+  return null;
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 

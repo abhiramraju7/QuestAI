@@ -1,24 +1,10 @@
 import React, { useMemo } from "react";
-import { ActivityResult } from "../lib/api";
+import type { ActivityWithMatch } from "../App";
 
 type FriendProfile = {
   id: string;
   name: string;
   likes: string;
-};
-
-type MatchBreakdown = {
-  overall: number;
-  prompt: number;
-  friends: Array<{
-    id: string;
-    name: string;
-    score: number;
-  }>;
-};
-
-type ActivityWithMatch = ActivityResult & {
-  match: MatchBreakdown;
 };
 
 type MatchPanelProps = {
@@ -44,14 +30,16 @@ export function MatchPanel({ activity, friends }: MatchPanelProps) {
       score: activity.match.prompt,
     };
 
-    const friendAxes = friends.map<Axis>((friend) => {
-      const entry = activity.match.friends.find((item) => item.id === friend.id);
-      return {
-        id: friend.id,
-        label: friend.name,
-        score: entry?.score ?? 0,
-      };
-    });
+    const friendAxes = friends
+      .filter((friend) => friend.likes.trim().length > 0)
+      .map<Axis>((friend) => {
+        const entry = activity.match.friends.find((item) => item.id === friend.id);
+        return {
+          id: friend.id,
+          label: entry?.name || friend.name || "Friend",
+          score: entry?.score ?? 0.05,
+        };
+      });
 
     return [promptAxis, ...friendAxes];
   }, [activity, friends]);

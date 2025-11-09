@@ -1,8 +1,8 @@
 import React from "react";
-import { ActivityResult } from "../lib/api";
+import type { ActivityWithMatch } from "../App";
 
 type MapPanelProps = {
-  activity: (ActivityResult & { match?: unknown }) | null;
+  activity: ActivityWithMatch | null;
 };
 
 export function MapPanel({ activity }: MapPanelProps) {

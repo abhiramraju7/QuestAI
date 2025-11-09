@@ -124,6 +124,45 @@ body {
   gap: 0.4rem;
 }
 
+.friend-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.friend-editor__row input {
+  flex: 1;
+  border: 1px solid rgba(61, 153, 158, 0.26);
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.98);
+  font: inherit;
+  color: inherit;
+}
+
+.friend-editor__remove {
+  border: none;
+  background: rgba(61, 153, 158, 0.12);
+  color: #0f4d51;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.friend-editor__remove:hover {
+  background: rgba(61, 153, 158, 0.22);
+}
+
+.friend-editor__remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(61, 153, 158, 0.12);
+}
+
 .friend-editor__tag {
   display: inline-flex;
   align-items: center;
@@ -145,6 +184,11 @@ body {
   color: inherit;
   resize: vertical;
   min-height: 64px;
+}
+
+.friend-editor__add {
+  align-self: flex-start;
+  padding-inline: 1.2rem;
 }
 
 .hero-grid__summary {
