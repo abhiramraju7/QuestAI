@@ -1,11 +1,17 @@
 from typing import Any, Dict, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .mock_events import search_mock_events
-from .schemas import ActivitySearchRequest, EventItem
+from .schemas import (
+    ActivitySearchRequest,
+    AgentDiscoverRequest,
+    AgentDiscoverResponse,
+    EventItem,
+)
 from .tools import tool_find_activities
+from .agent_workflow import agent_discover
 
 app = FastAPI(title="Vivi Planner API", version="0.1.0")
 
@@ -21,6 +27,26 @@ app.add_middleware(
 @app.get("/health")
 def healthcheck() -> dict:
     return {"status": "ok", "service": "vivi-planner"}
+
+
+@app.post("/api/v1/agent/discover", response_model=AgentDiscoverResponse)
+def agent_discover_endpoint(req: AgentDiscoverRequest) -> AgentDiscoverResponse:
+    if not req.prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    result = agent_discover(req.prompt, req.location, req.budget_cap, req.friends)
+
+    activities = [
+        EventItem(**item)
+        for item in result.get("activities", [])[:25]
+        if item.get("title")
+    ]
+
+    return AgentDiscoverResponse(
+        summary=result.get("summary") or "",
+        keywords=result.get("keywords") or [],
+        activities=activities,
+    )
 
 
 @app.post("/api/v1/activities", response_model=List[EventItem])

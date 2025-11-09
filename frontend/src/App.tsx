@@ -1,5 +1,5 @@
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
-import { ActivityResult, searchActivities } from "./lib/api";
+import { ActivityResult, invokeAgent, searchActivities } from "./lib/api";
 
 type FormState = {
   query_text: string;
@@ -28,21 +28,51 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [agentSummary, setAgentSummary] = useState<string | null>(null);
+  const [agentKeywords, setAgentKeywords] = useState<string[]>([]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setAgentSummary(null);
+    setAgentKeywords([]);
 
     try {
       const budget = form.budget_cap ? Number(form.budget_cap) : undefined;
-      const results = await searchActivities({
-        query_text: form.query_text,
+      const agentPayload = {
+        prompt: form.query_text,
         location: form.location || undefined,
         budget_cap: Number.isFinite(budget) ? budget : undefined,
-      });
+        friends: {
+          alex: { likes: ["karaoke", "late night"], budget: 40 },
+          maya: { likes: ["arcade", "music"], budget: 35 },
+          jordan: { likes: ["outdoors", "food trucks"], budget: 30 },
+        },
+      };
+
+      let agentActivities: ActivityResult[] = [];
+      try {
+        const agentResult = await invokeAgent(agentPayload);
+        setAgentSummary(agentResult.summary ?? null);
+        setAgentKeywords(agentResult.keywords ?? []);
+        agentActivities = agentResult.activities ?? [];
+      } catch (agentErr) {
+        console.warn("Agent invocation failed:", agentErr);
+      }
+
+      let results = agentActivities;
+
+      if (!results.length) {
+        results = await searchActivities({
+          query_text: form.query_text,
+          location: form.location || undefined,
+          budget_cap: Number.isFinite(budget) ? budget : undefined,
+        });
+      }
+
       setActivities(results);
-      setSelectedActivity((prev) => (prev && results.some((item) => item.id === prev.id) ? prev : null));
+      setSelectedActivity((prev) => (prev && results.some((item) => item.id === prev.id) ? prev : results[0] ?? null));
       setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -161,6 +191,22 @@ export default function App() {
             </div>
             {activities.length > 0 && <span className="results-count">{activities.length}</span>}
           </div>
+
+          {agentSummary && (
+            <div className="ai-summary">
+              <div className="ai-summary__label">AI plan</div>
+              <p>{agentSummary}</p>
+              {agentKeywords.length > 0 && (
+                <div className="ai-summary__keywords">
+                  {agentKeywords.map((keyword) => (
+                    <span key={keyword} className="tag-chip">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {error && <div className="alert alert--error">{error}</div>}
           {!error && !loading && hasSearched && activities.length === 0 && (

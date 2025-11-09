@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -81,4 +81,17 @@ class PlanResponse(BaseModel):
     energy_profile: Optional[str] = None
     candidates: List[PlanCard]
     action_log: List[str]
+
+
+class AgentDiscoverRequest(BaseModel):
+    prompt: str
+    location: Optional[str] = None
+    budget_cap: Optional[float] = None
+    friends: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentDiscoverResponse(BaseModel):
+    summary: Optional[str] = None
+    keywords: List[str] = Field(default_factory=list)
+    activities: List[EventItem] = Field(default_factory=list)
 

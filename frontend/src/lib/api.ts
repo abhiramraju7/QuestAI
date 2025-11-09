@@ -21,6 +21,19 @@ export type ActivityResult = {
   tags?: string[];
 };
 
+export type AgentDiscoverRequest = {
+  prompt: string;
+  location?: string;
+  budget_cap?: number;
+  friends?: Record<string, unknown>;
+};
+
+export type AgentDiscoverResponse = {
+  summary?: string | null;
+  keywords: string[];
+  activities: ActivityResult[];
+};
+
 export async function searchActivities(payload: ActivitySearchPayload): Promise<ActivityResult[]> {
   const base = API_BASE || `${window.location.origin}/.netlify/functions`;
   const url = API_BASE ? `${base}/api/v1/activities` : `${base}/activities`;
@@ -39,5 +52,32 @@ export async function searchActivities(payload: ActivitySearchPayload): Promise<
   }
 
   return res.json();
+}
+
+export async function invokeAgent(
+  payload: AgentDiscoverRequest
+): Promise<AgentDiscoverResponse> {
+  const base = API_BASE || `${window.location.origin}/.netlify/functions`;
+  const url = API_BASE ? `${base}/api/v1/agent/discover` : `${base}/agent/discover`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Agent request failed with ${res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    summary: data.summary ?? null,
+    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+    activities: Array.isArray(data.activities) ? data.activities : [],
+  };
 }
 
