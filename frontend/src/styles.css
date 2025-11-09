@@ -1040,20 +1040,109 @@ body {
   box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.08), 0 12px 30px rgba(139, 92, 246, 0.18);
 }
 
-.yumi-orbit-cards {
+/* New dual orbit system */
+.orbit-ring {
   position: absolute;
-  width: 38rem;
-  height: 38rem;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
   pointer-events: auto;
-  animation: orbit-slow 38s linear infinite;
+  animation: orbit var(--dur, 36s) linear infinite;
+  display: contents; /* items are absolutely positioned via transforms */
 }
-.yumi-orbit-cards:hover { animation-play-state: paused; }
-@keyframes orbit-slow {
+@keyframes orbit {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+.orbit-ring--activities { --radius: 16rem; }
+.orbit-ring--friends { --radius: 10.5rem; }
+
+.orbit-item {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform:
+    rotate(calc((var(--index) / var(--count)) * 360deg))
+    translateY(calc(-1 * var(--radius)))
+    rotate(calc(-1 * (var(--index) / var(--count)) * 360deg));
+  transform-origin: center center;
+  will-change: transform;
+  filter: drop-shadow(0 8px 18px rgba(17,24,39,0.08));
+}
+.orbit-item__inner {
+  animation: counter var(--dur,36s) linear infinite reverse;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  justify-items: center;
+}
+@keyframes counter {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.orbit-item--card .yumi-card__thumb {
+  width: 108px;
+  height: 108px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #e9d5ff, #dbeafe);
+  display: grid;
+  place-items: center;
+  color: #4f46e5;
+  font-weight: 800;
+  font-size: 1.6rem;
+  border: 1px solid rgba(15,23,42,0.06);
+}
+.orbit-item--card .yumi-card__title {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  background: rgba(255,255,255,0.85);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,0.04);
+}
+.orbit-item--card:hover .yumi-card__thumb {
+  transform: scale(1.05);
+  transition: transform 140ms ease;
+  box-shadow: 0 12px 28px rgba(79,70,229,.22);
+}
+.orbit-item--card::after {
+  content: "Click to add";
+  position: absolute;
+  top: calc(-1 * var(--radius));
+  transform: translate(-50%, -120%);
+  left: 50%;
+  opacity: 0;
+  background: rgba(255,255,255,0.9);
+  color: #4f46e5;
+  border: 1px solid rgba(79,70,229,0.25);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.orbit-item--card:hover::after { opacity: 1; }
+
+.orbit-item--friend .friend-node {
+  width: 46px;
+  height: 46px;
+  background: rgba(139,92,246,0.18);
+  border-color: rgba(139,92,246,0.55);
+}
+.orbit-item--friend.is-included .friend-node {
+  box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.12), 0 12px 30px rgba(139, 92, 246, 0.25);
+}
+.included-pill {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(224,231,255,0.9);
+  color: #4f46e5;
+  border: 1px solid rgba(79,70,229,0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 .yumi-card {
   pointer-events: auto;

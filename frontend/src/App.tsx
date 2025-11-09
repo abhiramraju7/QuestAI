@@ -436,28 +436,52 @@ function CenterRecommendations({
   onEventClick: (e: EventItem) => void;
   loading: boolean;
 }) {
-  const topEvents = useMemo(() => events.slice(0, 12), [events]);
+  const topEvents = useMemo(() => events.slice(0, 16), [events]);
+  const [included, setIncluded] = useState<string[]>([]);
+  const toggleInclude = (name: string) =>
+    setIncluded((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
   return (
     <section className="yumi-center">
       <SimilarityOrb score={score} friends={friends} />
-      <div className="yumi-orbit-cards">
+      <div className="orbit-ring orbit-ring--activities" style={{ ["--count" as any]: topEvents.length, ["--dur" as any]: "36s" }}>
         {topEvents.map((e: EventItem, i: number) => {
-          const angle = (i / Math.max(1, topEvents.length)) * 360;
-          const transform = `rotate(${angle}deg) translateY(-15rem) rotate(${-angle}deg)`;
           const active = activeId === e.id;
           return (
             <button
               key={e.id}
               type="button"
-              className={`yumi-card ${active ? "is-active" : ""}`}
-              style={{ transform }}
+              className={`orbit-item orbit-item--card ${active ? "is-active" : ""}`}
+              style={{ ["--index" as any]: i }}
               onClick={() => onEventClick(e)}
               title={e.title}
             >
-              <div className="yumi-card__thumb" aria-hidden="true">
-                <span>{e.title.slice(0, 1)}</span>
+              <div className="orbit-item__inner">
+                <div className="yumi-card__thumb" aria-hidden="true">
+                  <span>{e.title.slice(0, 1)}</span>
+                </div>
+                <span className="yumi-card__title">{e.title}</span>
               </div>
-              <span className="yumi-card__title">{e.title}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="orbit-ring orbit-ring--friends" style={{ ["--count" as any]: friends.length, ["--dur" as any]: "28s" }}>
+        {friends.map((name: string, i: number) => {
+          const initial = name.slice(0, 1).toUpperCase();
+          const isIncluded = included.includes(name);
+          return (
+            <button
+              key={name}
+              type="button"
+              className={`orbit-item orbit-item--friend ${isIncluded ? "is-included" : ""}`}
+              style={{ ["--index" as any]: i }}
+              onClick={() => toggleInclude(name)}
+              title={name}
+            >
+              <div className="orbit-item__inner">
+                <div className="friend-node"><span>{initial}</span></div>
+                {isIncluded && <span className="included-pill">Included</span>}
+              </div>
             </button>
           );
         })}
