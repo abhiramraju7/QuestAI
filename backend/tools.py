@@ -334,6 +334,22 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
             if business_status and business_status.upper() != "OPERATIONAL":
                 summary = business_status.title()
 
+        place_id = place.get("place_id")
+        maps_url = (
+            f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+            if place_id
+            else f"https://www.google.com/maps/search/?api=1&query={geometry.get('lat')},{geometry.get('lng')}"
+        )
+
+        website = place.get("website")
+        if website:
+            booking_url = website
+        else:
+            query_name = place.get("name", "")
+            query_address = place.get("formatted_address") or place.get("vicinity") or ""
+            search_term = quote_plus(f"{query_name} {query_address}".strip())
+            booking_url = f"https://www.google.com/search?q={search_term}"
+
         results.append(
             {
                 "title": place.get("name"),
@@ -343,9 +359,8 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "lat": geometry.get("lat"),
                 "lng": geometry.get("lng"),
                 "distance_km": None,
-                "booking_url": place.get("website")
-                or f"https://maps.google.com/?q={place.get('place_id')}",
-                "maps_url": f"https://www.google.com/maps/search/?api=1&query={geometry.get('lat')},{geometry.get('lng')}",
+                "booking_url": booking_url,
+                "maps_url": maps_url,
                 "source": "google_places",
                 "image_url": image_url,
                 "tags": place.get("types") or [],

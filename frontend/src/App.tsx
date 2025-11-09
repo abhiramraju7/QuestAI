@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { ActivityResult, searchActivities } from "./lib/api";
 
 type FormState = {
@@ -7,12 +7,22 @@ type FormState = {
   budget_cap?: string;
 };
 
+const DEFAULT_FORM: FormState = {
+  query_text: "Live music with arcade games",
+  location: "Boston, MA",
+  budget_cap: "",
+};
+
+const SUGGESTIONS = [
+  "Sip-and-paint night with friends",
+  "Open mic comedy downtown",
+  "Outdoor skating with food trucks",
+  "Late-night board game cafe",
+  "Trampoline park party",
+];
+
 export default function App() {
-  const [form, setForm] = useState<FormState>({
-    query_text: "Live music with food trucks",
-    location: "Cambridge, MA",
-    budget_cap: "30",
-  });
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [activities, setActivities] = useState<ActivityResult[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,96 +42,135 @@ export default function App() {
         budget_cap: Number.isFinite(budget) ? budget : undefined,
       });
       setActivities(results);
-      setSelectedActivity((prev) =>
-        prev && results.some((item) => item.id === prev.id) ? prev : null
-      );
+      setSelectedActivity((prev) => (prev && results.some((item) => item.id === prev.id) ? prev : null));
       setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setActivities([]);
       setSelectedActivity(null);
       setHasSearched(true);
-  useEffect(() => {
-    if (!selectedActivity) {
-      return;
-    }
-    const stillPresent = activities.some((activity) => activity.id === selectedActivity.id);
-    if (!stillPresent) {
-      setSelectedActivity(null);
-    }
-  }, [activities, selectedActivity]);
-
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="page">
-      <header className="page__header">
-        <h1>Challo Activity Finder</h1>
-        <p>Tell us what kind of outing you want and we’ll surface fun spots around town.</p>
-      </header>
+  useEffect(() => {
+    if (!selectedActivity) {
+      return;
+    }
+    if (!activities.some((activity) => activity.id === selectedActivity.id)) {
+      setSelectedActivity(null);
+    }
+  }, [activities, selectedActivity]);
 
-      <main className="page__main">
-        <section className="panel">
-          <form className="search-form" onSubmit={handleSubmit}>
+  const topActivities = useMemo(() => activities.slice(0, 40), [activities]);
+
+  function handleSuggestionClick(text: string) {
+    setForm((prev) => ({ ...prev, query_text: text }));
+  }
+
+  function handleReset() {
+    setForm(DEFAULT_FORM);
+    setActivities([]);
+    setSelectedActivity(null);
+    setError(null);
+    setHasSearched(false);
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="hero">
+        <div className="hero__badge">Challo</div>
+        <div className="hero__content">
+          <h1>Plan the next great hang.</h1>
+          <p>
+            Describe the vibe, pick a city, and we’ll surface venues, experiences, and nightlife to match the energy.
+          </p>
+        </div>
+
+        <form className="search-card" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>What are you in the mood for?</span>
+            <textarea
+              value={form.query_text}
+              onChange={(event) => setForm((prev) => ({ ...prev, query_text: event.target.value }))}
+              rows={3}
+              placeholder="e.g. Neon-lit arcade with DJ sets"
+              required
+            />
+          </label>
+
+          <div className="search-card__grid">
             <label className="field">
-              <span>What are you looking for?</span>
-              <textarea
-                value={form.query_text}
-                onChange={(event) => setForm((prev) => ({ ...prev, query_text: event.target.value }))}
-                rows={3}
-                placeholder="e.g. Chill rooftop hangs with live jazz"
-                required
+              <span>City or neighborhood</span>
+              <input
+                value={form.location ?? ""}
+                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
+                placeholder="Boston, MA"
               />
             </label>
 
-            <div className="form-grid">
-              <label className="field">
-                <span>Location (optional)</span>
-                <input
-                  value={form.location ?? ""}
-                  onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                  placeholder="City, neighborhood, or address"
-                />
-              </label>
+            <label className="field">
+              <span>Budget cap (optional)</span>
+              <input
+                type="number"
+                min="0"
+                value={form.budget_cap ?? ""}
+                onChange={(event) => setForm((prev) => ({ ...prev, budget_cap: event.target.value }))}
+                placeholder="40"
+              />
+            </label>
+          </div>
 
-              <label className="field">
-                <span>Budget cap (optional)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.budget_cap ?? ""}
-                  onChange={(event) => setForm((prev) => ({ ...prev, budget_cap: event.target.value }))}
-                  placeholder="30"
-                />
-              </label>
-            </div>
-
-            <button type="submit" className="btn" disabled={loading}>
-              {loading ? "Searching..." : "Find activities"}
+          <div className="search-card__actions">
+            <button type="submit" className="btn btn--primary" disabled={loading}>
+              {loading ? "Searching..." : "Discover spots"}
             </button>
-          </form>
-        </section>
+            <button type="button" className="btn btn--ghost" onClick={handleReset}>
+              Reset
+            </button>
+          </div>
 
-        <section className="panel">
-          <header className="panel__header">
-            <h2>Results</h2>
-            {activities.length > 0 && <span className="badge">{activities.length}</span>}
-          </header>
+          <div className="suggestions">
+            {SUGGESTIONS.map((suggestion) => (
+              <button
+                type="button"
+                key={suggestion}
+                className="suggestion-chip"
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </form>
+      </header>
+
+      <main className="app-grid">
+        <section className="results-pane">
+          <div className="results-header">
+            <div>
+              <h2>Possible hangouts</h2>
+              <p className="muted">
+                {loading
+                  ? "Fetching your recommendations…"
+                  : hasSearched
+                  ? "Tap a card to preview it on the map."
+                  : "Search to see curated places near you."}
+              </p>
+            </div>
+            {activities.length > 0 && <span className="results-count">{activities.length}</span>}
+          </div>
 
           {error && <div className="alert alert--error">{error}</div>}
-          {!error && loading && <p className="muted">Fetching live options…</p>}
-          {!error && !loading && activities.length === 0 && hasSearched && (
-            <p className="muted">No activities matched. Try adjusting your search.</p>
-          )}
-          {!error && !loading && !hasSearched && (
-            <p className="muted">Run a search to see ideas for things to do nearby.</p>
+          {!error && !loading && hasSearched && activities.length === 0 && (
+            <div className="empty-state">
+              <p>No matches yet. Try broadening the vibe or using a nearby neighborhood.</p>
+            </div>
           )}
 
-          <ul className="results">
-            {activities.map((activity) => (
+          <div className="results-list">
+            {topActivities.map((activity) => (
               <ActivityCard
                 key={activity.id}
                 activity={activity}
@@ -129,35 +178,24 @@ export default function App() {
                 onSelect={() => setSelectedActivity(activity)}
               />
             ))}
-          </ul>
+            {!loading && !hasSearched && (
+              <div className="placeholder-card">
+                <p>Need inspiration? Try “late-night karaoke in Chinatown” or “sunset boat ride with cocktails”.</p>
+              </div>
+            )}
+          </div>
         </section>
 
-        <section className="panel">
-          <header className="panel__header">
-            <h2>Map</h2>
-          </header>
+        <aside className="map-pane">
           {selectedActivity ? (
-            <div className="map-panel">
-              <div className="map-panel__meta">
-                <strong>{selectedActivity.title}</strong>
-                <p>{selectedActivity.address ?? "Location coming soon"}</p>
-              </div>
-              {selectedActivity.lat != null && selectedActivity.lng != null ? (
-                <iframe
-                  title="Activity location"
-                  className="map-frame"
-                  src={`https://maps.google.com/maps?q=${selectedActivity.lat},${selectedActivity.lng}&z=15&output=embed`}
-                  allowFullScreen
-                  loading="lazy"
-                />
-              ) : (
-                <p className="muted">No coordinates available for this spot.</p>
-              )}
-            </div>
+            <MapPanel activity={selectedActivity} />
           ) : (
-            <p className="muted">Select an activity to preview it on the map.</p>
+            <div className="map-placeholder">
+              <h3>Select a spot</h3>
+              <p>We’ll drop it on the map with next steps once you choose a card.</p>
+            </div>
           )}
-        </section>
+        </aside>
       </main>
     </div>
   );
@@ -180,18 +218,25 @@ function ActivityCard({
     metaParts.push(activity.price);
   }
 
-  return (
-    <li>
-      <button type="button" className={`result-card ${isActive ? "result-card--active" : ""}`} onClick={onSelect}>
-      <header className="result-card__head">
-        <h3>{activity.title}</h3>
-      </header>
+    return (
+    <button type="button" className={`activity-card ${isActive ? "is-active" : ""}`} onClick={onSelect}>
+      {activity.image_url ? (
+        <div
+          className="activity-card__media"
+          style={{ backgroundImage: `linear-gradient(180deg,rgba(15,23,42,0) 40%,rgba(15,23,42,0.65)),url(${activity.image_url})` }}
+        />
+      ) : (
+        <div className="activity-card__media activity-card__media--fallback">{activity.title.slice(0, 1)}</div>
+      )}
 
-        {metaParts.length > 0 && <p className="result-card__meta">{metaParts.join(" · ")}</p>}
+      <div className="activity-card__body">
+        <div className="activity-card__head">
+          <h3>{activity.title}</h3>
+        </div>
+        {metaParts.length > 0 && <p className="activity-card__meta">{metaParts.join(" · ")}</p>}
+        {activity.summary && <p className="activity-card__summary">{activity.summary}</p>}
 
-        {activity.summary && <p className="result-card__summary">{activity.summary}</p>}
-
-        <div className="result-card__links">
+        <div className="activity-card__links">
           {activity.booking_url && (
             <a href={activity.booking_url} target="_blank" rel="noreferrer">
               Details
@@ -199,12 +244,63 @@ function ActivityCard({
           )}
           {activity.maps_url && (
             <a href={activity.maps_url} target="_blank" rel="noreferrer">
-              Map
+              Open in Maps
             </a>
           )}
         </div>
-      </button>
-    </li>
+      </div>
+    </button>
+  );
+}
+
+function MapPanel({ activity }: { activity: ActivityResult }) {
+  const mapSrc =
+    activity.lat != null && activity.lng != null
+      ? `https://maps.google.com/maps?q=${activity.lat},${activity.lng}&z=15&output=embed`
+      : null;
+
+  return (
+    <div className="map-card">
+      <div className="map-card__header">
+        <div>
+          <h3>{activity.title}</h3>
+          {activity.address && <p>{activity.address}</p>}
+        </div>
+        <div className="map-card__actions">
+          {activity.booking_url && (
+            <a className="btn btn--outline" href={activity.booking_url} target="_blank" rel="noreferrer">
+              View details
+            </a>
+          )}
+          {activity.maps_url && (
+            <a className="btn btn--primary" href={activity.maps_url} target="_blank" rel="noreferrer">
+              Directions
+            </a>
+          )}
+        </div>
+      </div>
+
+      {mapSrc ? (
+        <iframe title="Selected activity location" src={mapSrc} className="map-card__frame" allowFullScreen loading="lazy" />
+      ) : (
+        <div className="map-card__fallback">
+          <p>Map preview unavailable. Use the links above for directions.</p>
+        </div>
+      )}
+
+      {activity.tags?.length ? (
+        <div className="tag-cloud">
+          {activity.tags.slice(0, 6).map((tag) => {
+            const label = tag.replace(/_/g, " ");
+            return (
+              <span key={tag} className="tag-chip">
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

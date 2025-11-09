@@ -17,6 +17,8 @@ export type ActivityResult = {
   maps_url?: string | null;
   lat?: number | null;
   lng?: number | null;
+  image_url?: string | null;
+  tags?: string[];
 };
 
 export async function searchActivities(payload: ActivitySearchPayload): Promise<ActivityResult[]> {
