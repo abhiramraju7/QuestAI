@@ -12,6 +12,7 @@ from .orchestrator import plan
 from .schemas import GroupRequest, PlanResponse, EventItem
 from typing import Optional, List, Dict, Any
 from .mock_events import search_mock_events
+from .tools import tool_find_activities
 
 app = FastAPI(title="Vivi Planner API", version="0.1.0")
 
@@ -58,8 +59,8 @@ def list_events(
     ),
 ) -> List[EventItem]:
     """
-    Search the mock catalog representing Eventbrite + Google Places results.
-    Swap `search_mock_events` for real provider integrations once API keys are wired.
+    Search activities/events from providers and return lightweight items.
+    Uses real Google Places/Eventbrite if API keys are configured, otherwise falls back to mocks.
     """
 
     def _split_csv(value: Optional[str]) -> List[str]:
@@ -79,7 +80,33 @@ def list_events(
         "tags": _split_csv(tags),
     }
 
-    results = search_mock_events(filters)
-    return [EventItem(**item) for item in results]
+    # Prefer real providers if configured
+    items: List[Dict[str, Any]] = tool_find_activities(filters)
+    if not items:
+        items = search_mock_events(filters)
+
+    def _mk_id(it: Dict[str, Any]) -> str:
+        base = f"{it.get('source','src')}::{it.get('title','')}::{it.get('address','')}"
+        return str(abs(hash(base)))
+
+    normalized: List[EventItem] = []
+    for it in items[:limit]:
+        payload: Dict[str, Any] = {
+            "id": it.get("id") or _mk_id(it),
+            "title": it.get("title"),
+            "venue": it.get("venue"),
+            "address": it.get("address"),
+            "image_url": it.get("image_url"),
+            "lat": it.get("lat"),
+            "lng": it.get("lng"),
+            "price": it.get("price"),
+            "vibe": it.get("vibe"),
+            "summary": it.get("summary"),
+            "booking_url": it.get("booking_url"),
+            "maps_url": it.get("maps_url"),
+            "source": it.get("source") or "unknown",
+        }
+        normalized.append(EventItem(**payload))
+    return normalized
 
 

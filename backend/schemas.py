@@ -39,6 +39,7 @@ class EventItem(BaseModel):
     title: str
     venue: Optional[str] = None
     address: Optional[str] = None
+    image_url: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
     price: Optional[str] = None

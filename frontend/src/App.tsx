@@ -509,6 +509,8 @@ function HorizontalPicker({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const getEventImage = (e: EventItem): string => {
+    const direct = (e as any).image_url as string | undefined;
+    if (direct) return direct;
     const vibeText = ((e as any).vibe || (e as any).vibes?.[0] || "").toString();
     const q = encodeURIComponent(
       `${e.title || ""} ${vibeText} Atlanta activity, event, outdoors, nightlife`

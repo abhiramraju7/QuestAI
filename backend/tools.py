@@ -277,6 +277,15 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     for place in data.get("results", [])[:20]:
         geometry = place.get("geometry", {}).get("location", {})
         price_band = _google_price_to_band(place.get("price_level")) or "unknown"
+        photo_ref = None
+        photos = place.get("photos") or []
+        if photos:
+            photo_ref = photos[0].get("photo_reference")
+        image_url = (
+            f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference={photo_ref}&key={api_key}"
+            if photo_ref
+            else None
+        )
 
         if price_level_cap is not None:
             level = _price_band_to_level(price_band)
@@ -296,6 +305,7 @@ def _fetch_google_places(query: Dict[str, Any]) -> List[Dict[str, Any]]:
                 or f"https://maps.google.com/?q={place.get('place_id')}",
                 "maps_url": f"https://www.google.com/maps/search/?api=1&query={geometry.get('lat')},{geometry.get('lng')}",
                 "source": "google_places",
+                "image_url": image_url,
                 "tags": place.get("types") or [],
                 "summary": place.get("editorial_summary", {}).get("overview")
                 or place.get("business_status")
