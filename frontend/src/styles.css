@@ -1015,22 +1015,7 @@ body {
 }
 
 /* Headline like the reference */
-.headline {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 10vh;
-  margin: 0;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  font-size: clamp(1.8rem, 3.6vw, 3rem);
-  background: linear-gradient(180deg, #111827, #6b7280);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-align: center;
-  width: min(1100px, 80vw);
-}
+/* Headline removed by design */
 
 /* Orb light overrides */
 .orb__glow {
@@ -1168,7 +1153,7 @@ body {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: calc(10vh + 6rem);
+  top: 16vh;
   display: flex;
   gap: 1.25rem;
   z-index: 2;
@@ -1198,7 +1183,7 @@ body {
   position: absolute;
   left: 50%;
   transform: translate(-50%, -50%);
-  top: calc(10vh + 15rem);
+  top: 32vh;
   width: min(900px, 70vw);
   height: 140px;
   border-radius: 20px;
@@ -1251,7 +1236,7 @@ body {
 }
 .picker-actions {
   position: absolute;
-  top: calc(10vh + 24rem);
+  top: 46vh;
 }
 
 /* Subtle mini orb at center */

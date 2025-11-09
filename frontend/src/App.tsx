@@ -259,7 +259,6 @@ export default function App() {
       />
       {activeNav === "Discover" && (
         <HorizontalPicker
-          headline={makeHeadline(query, budgetCap, vibeHint, eventLocation || locationHint)}
           friends={friendObjects.map((f) => f.name)}
           events={events.slice(0, 15)}
           onGenerate={() => onSubmit as any}
@@ -491,32 +490,13 @@ function CenterRecommendations({
   );
 }
 
-function makeHeadline(
-  queryText: string,
-  budget: string,
-  vibe: string,
-  loc: string
-) {
-  const parts: string[] = [];
-  if (queryText) {
-    const first = queryText.split(".")[0];
-    parts.push(first.replace(/^we/i, "We"));
-  }
-  if (budget) parts.push(`Under $${budget} 🍕`);
-  if (vibe) parts.push(`${vibe[0].toUpperCase()}${vibe.slice(1)} 🌱☁️`);
-  if (loc) parts.push(`Near ${loc}`);
-  return parts.join("  ·  ");
-}
-
 function HorizontalPicker({
-  headline,
   friends,
   events,
   onGenerate,
   onEventClick,
   loading,
 }: {
-  headline: string;
   friends: string[];
   events: EventItem[];
   onGenerate: (e: FormEvent<HTMLFormElement>) => void;
@@ -529,10 +509,12 @@ function HorizontalPicker({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const getEventImage = (e: EventItem): string => {
-    const base = "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=320&q=60";
-    const vibeText = ((e as any).vibe || (e as any).vibes?.[0] || "");
-    const q = encodeURIComponent(`${e.title || ""} ${vibeText} atlanta activity`);
-    return `https://source.unsplash.com/seed/${encodeURIComponent(e.id || e.title)}/200x200/?${q}` || base;
+    const vibeText = ((e as any).vibe || (e as any).vibes?.[0] || "").toString();
+    const q = encodeURIComponent(
+      `${e.title || ""} ${vibeText} Atlanta activity, event, outdoors, nightlife`
+    );
+    // Unsplash Source without API key; random photo matching query
+    return `https://source.unsplash.com/200x200/?${q}`;
   };
 
   const placeholders = useMemo(
@@ -605,7 +587,6 @@ function HorizontalPicker({
 
   return (
     <section className="yumi-center">
-      <h1 className="headline">{headline || "Tell us the vibe…"} </h1>
       <div className="friends-row">
         {friends.map((name) => {
           const initial = name.slice(0, 1).toUpperCase();
