@@ -249,360 +249,28 @@ export default function App() {
 
   return (
     <div className="map-layout">
-      <AnimatedBackdrop />
-
-      <header className="top-bar">
-        <span className="logo">Challo</span>
-        <div className="top-bar__meta">
-          <span>Agent graph</span>
-          <span>Eventbrite</span>
-          <span>Google Places</span>
-        </div>
-      </header>
-
-      <YumiLayout
-        query={query}
-        setQuery={setQuery}
-        locationHint={locationHint}
-        setLocationHint={setLocationHint}
-        timeWindow={timeWindow}
-        setTimeWindow={setTimeWindow}
-        vibeHint={vibeHint}
-        setVibeHint={setVibeHint}
-        customLikes={customLikes}
-        setCustomLikes={setCustomLikes}
-        customTags={customTags}
-        setCustomTags={setCustomTags}
-        selectedFriends={selectedFriends}
-        toggleFriend={toggleFriend}
-        friends={FRIENDS}
+      <LightSurface />
+      <SidebarNav />
+      <LocationChip
+        value={eventLocation}
+        onChange={(v) => setEventLocation(v)}
+        onSubmit={() => void performEventSearch()}
+      />
+      <CenterRecommendations
+        score={displayScore}
+        friends={friendObjects.map((f) => f.name)}
+        events={events}
+        activeId={activeEventId}
+        onEventClick={handleEventCardClick}
+        loading={eventsLoading || loading}
+      />
+      <ChatBar
+        value={query}
+        onChange={setQuery}
         onSubmit={onSubmit}
         loading={loading}
-        events={events}
-        eventsLoading={eventsLoading}
-        eventsError={eventsError}
-        setEventQuery={setEventQuery}
-        setEventLocation={setEventLocation}
-        setEventVibeFilter={setEventVibeFilter}
-        handleEventSearchSubmit={handleEventSearchSubmit}
-        result={result}
-        displayScore={displayScore}
-        onEventClick={handleEventCardClick}
+        placeholder={loading ? "AI is thinking..." : "Describe the vibe, budget, and area..."}
       />
-
-      <section className="control-stack">
-        <form className="panel query-card" onSubmit={onSubmit}>
-          <label className="query-card__prompt">
-            <span>What do you feel like?</span>
-            <textarea
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              rows={2}
-              placeholder="Tonight we're broke but want outdoorsy music near Cambridge."
-            />
-          </label>
-
-          <div className="query-grid">
-            <label>
-              Location
-              <input
-                value={locationHint}
-                onChange={(e) => setLocationHint(e.target.value)}
-                placeholder="Cambridge, MA"
-              />
-            </label>
-            <label>
-              Time
-              <input
-                value={timeWindow}
-                onChange={(e) => setTimeWindow(e.target.value)}
-                placeholder="Tonight 5-9pm"
-              />
-            </label>
-          </div>
-
- 		    <div className="query-grid">
-            <label>
-              Interests
-              <input
-                value={customLikes}
-                onChange={(e) => setCustomLikes(e.target.value)}
-                placeholder="live music, sunset picnic"
-              />
-            </label>
-            <label>
-              Tags
-              <input
-                value={customTags}
-                onChange={(e) => setCustomTags(e.target.value)}
-                placeholder="outdoor, group, evening"
-              />
-            </label>
-          </div>
-
-          <div className="chip-row">
-            <label>
-              Vibe
-              <input
-                value={vibeHint}
-                onChange={(e) => setVibeHint(e.target.value)}
-                placeholder="music"
-              />
-            </label>
-            <label>
-              Budget $
-              <input
-                value={budgetCap}
-                onChange={(e) => setBudgetCap(e.target.value)}
-                type="number"
-                min="0"
-              />
-            </label>
-            <label>
-              Radius km
-              <input
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                type="number"
-                min="0"
-              />
-            </label>
-          </div>
-
-          <details className="query-advanced">
-            <summary>Friends & providers</summary>
-            <div className="friend-chips">
-              {FRIENDS.map((friend) => {
-                const active = selectedFriends.includes(friend.id);
-                return (
-                  <button
-                    key={friend.id}
-                    type="button"
-                    className={`friend-chip ${active ? "friend-chip--active" : ""}`}
-                    onClick={() => toggleFriend(friend.id)}
-                  >
-                    <span>{friend.name}</span>
-                    <small>{friend.tags.join(" · ")}</small>
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedFriends.map((friendId) => {
-              const friend = FRIENDS.find((f) => f.id === friendId);
-              const inputs = friendInputs[friendId] || {
-                likes: "",
-                vibes: "",
-                tags: "",
-                budget: "",
-                distance: "",
-              };
-              return (
-                <div key={friendId} className="friend-card">
-                  <header>
-                    <span>{friend?.name ?? friendId}</span>
-                    <small>{friend?.tags.join(" / ")}</small>
-                  </header>
-                  <div className="query-grid">
-                    <label>
-                      Likes
-                      <input
-                        value={inputs.likes}
-                        onChange={(e) =>
-                          setFriendInputs((prev) => ({
-                            ...prev,
-                            [friendId]: { ...inputs, likes: e.target.value },
-                          }))
-                        }
-                        placeholder="live music"
-                      />
-                    </label>
-                    <label>
-                      Vibes
-                      <input
-                        value={inputs.vibes}
-                        onChange={(e) =>
-                          setFriendInputs((prev) => ({
-                            ...prev,
-                            [friendId]: { ...inputs, vibes: e.target.value },
-                          }))
-                        }
-                        placeholder="creative"
-                      />
-                    </label>
-                  </div>
-                  <div className="query-grid">
-                    <label>
-                      Tags
-                      <input
-                        value={inputs.tags}
-                        onChange={(e) =>
-                          setFriendInputs((prev) => ({
-                            ...prev,
-                            [friendId]: { ...inputs, tags: e.target.value },
-                          }))
-                        }
-                        placeholder="outdoor"
-                      />
-                    </label>
-                    <label>
-                      Budget $
-                      <input
-                        type="number"
-                        min="0"
-                        value={inputs.budget}
-                        onChange={(e) =>
-                          setFriendInputs((prev) => ({
-                            ...prev,
-                            [friendId]: { ...inputs, budget: e.target.value },
-                          }))
-                        }
-                      />
-                    </label>
-                    <label>
-                      Radius km
-                      <input
-                        type="number"
-                        min="0"
-                        value={inputs.distance}
-                        onChange={(e) =>
-                          setFriendInputs((prev) => ({
-                            ...prev,
-                            [friendId]: { ...inputs, distance: e.target.value },
-                          }))
-                        }
-                      />
-                    </label>
-                  </div>
-                </div>
-              );
-            })}
-
-            <label className="provider-select">
-              Provider
-              <select
-                value={eventProvider}
-                onChange={(e) => setEventProvider(e.target.value as EventProviderOption)}
-              >
-                <option value="all">Eventbrite + Google Places</option>
-                <option value="eventbrite">Eventbrite only</option>
-                <option value="google_places">Google Places only</option>
-              </select>
-            </label>
-          </details>
-
-          <div className="query-actions">
-            <button className="primary" type="submit" disabled={loading}>
-              {loading ? "Finding matches..." : "Show events"}
-            </button>
-            {error && <div className="inline-error">{error}</div>}
-          </div>
-        </form>
-
-        <div className="panel result-card">
-          {loading && <p className="placeholder">Synthesizing picks...</p>}
-          {!loading && !result && !error && (
-            <p className="placeholder">Enter a mood and interests to surface events on the map.</p>
-          )}
-          {result && (
-            <>
-              <header className="result-card__header">
-                <h2>{result.query_normalized}</h2>
-                <div className="tag-chip-row">
-                  {result.merged_vibe && <span className="tag-chip">{result.merged_vibe}</span>}
-                  {result.energy_profile && (
-                    <span className="tag-chip tag-chip--muted">{result.energy_profile}</span>
-                  )}
-                </div>
-              </header>
-              {result.candidates.length === 0 ? (
-                <p className="placeholder">
-                  No live matches. Try widening the radius or tweaking your keywords.
-                </p>
-              ) : (
-                <ul className="result-list">
-                  {result.candidates.map((card) => (
-                    <li key={card.title} className="result-list__item">
-                      <div>
-                        <strong>{card.title}</strong>
-                        {card.address && <span>{card.address}</span>}
-                      </div>
-                      <p>
-                        {card.price ? card.price : "Price: —"} ·{" "}
-                        {card.distance_km ? `${card.distance_km} km` : "distance unknown"} ·{" "}
-                        <span className="source-pill">{card.source}</span>
-                      </p>
-                      {card.summary && <p className="summary-text">{card.summary}</p>}
-                      <footer>
-                        <span className="score">{Math.round(card.group_score * 100)}%</span>
-                        <div className="links">
-                          {card.booking_url && (
-                            <a href={card.booking_url} target="_blank" rel="noreferrer">
-                              Event
-                            </a>
-                          )}
-                          {card.maps_url && (
-                            <a href={card.maps_url} target="_blank" rel="noreferrer">
-                              Map
-                            </a>
-                          )}
-                        </div>
-                      </footer>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      <aside className="event-board">
-        <form className="event-board__form" onSubmit={handleEventSearchSubmit}>
-          <input
-            value={eventQuery}
-            onChange={(e) => setEventQuery(e.target.value)}
-            placeholder="Keyword"
-          />
-          <input
-            value={eventLocation}
-            onChange={(e) => setEventLocation(e.target.value)}
-            placeholder="Location"
-          />
-          <input
-            value={eventVibeFilter}
-            onChange={(e) => setEventVibeFilter(e.target.value)}
-            placeholder="Vibe"
-          />
-          <button type="submit" disabled={eventsLoading}>
-            {eventsLoading ? "..." : "Refresh"}
-          </button>
-        </form>
-
-        <div className="event-board__list">
-          {eventsError && <div className="inline-error">{eventsError}</div>}
-          {!eventsError && eventsLoading && <p className="placeholder">Loading events...</p>}
-          {!eventsError && !eventsLoading && events.length === 0 && (
-            <p className="placeholder">No events matched. Try new keywords.</p>
-          )}
-          {events.map((event) => (
-            <button
-              key={event.id}
-              type="button"
-              className={`event-card ${activeEventId === event.id ? "event-card--active" : ""}`}
-              onClick={() => handleEventCardClick(event)}
-            >
-              <div>
-                <span className="event-card__title">{event.title}</span>
-                <span className="event-card__meta">
-                  {event.venue ?? event.address ?? "TBA"} · {event.price ?? "—"}
-                </span>
-              </div>
-              <span className="source-pill">{event.source}</span>
-            </button>
-          ))}
-        </div>
-      </aside>
     </div>
   );
 }
@@ -680,6 +348,142 @@ function AnimatedBackdrop() {
       <div className="blob blob--3" />
       <div className="grid-lights" />
     </div>
+  );
+}
+
+function LightSurface() {
+  return <div className="yumi-surface" />;
+}
+
+function SidebarNav() {
+  const items = [
+    { label: "Discover", icon: "🧭" },
+    { label: "Social Network", icon: "👥" },
+    { label: "Friends", icon: "😊" },
+    { label: "Explore", icon: "🗺️" },
+    { label: "Reservations", icon: "📅" },
+    { label: "Profile", icon: "👤" },
+  ];
+  return (
+    <aside className="yumi-sidebar-nav">
+      <div className="yumi-brand">YUMI</div>
+      <nav>
+        {items.map((it, idx) => (
+          <button key={it.label} className={`yumi-nav-item ${idx === 0 ? "is-active" : ""}`} type="button">
+            <span className="yumi-nav-icon">{it.icon}</span>
+            <span>{it.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div className="yumi-nav-footer">
+        <button type="button" className="yumi-nav-item">
+          <span className="yumi-nav-icon">🔇</span>
+          <span>Mute</span>
+        </button>
+        <button type="button" className="yumi-logout">Logout</button>
+      </div>
+    </aside>
+  );
+}
+
+function LocationChip({
+  value,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="yumi-location">
+      <input
+        className="yumi-location__input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onSubmit();
+          }
+        }}
+      />
+      <span className="yumi-caret">⌄</span>
+    </div>
+  );
+}
+
+function CenterRecommendations({
+  score,
+  friends,
+  events,
+  activeId,
+  onEventClick,
+  loading,
+}: {
+  score: number;
+  friends: string[];
+  events: EventItem[];
+  activeId: string | null;
+  onEventClick: (e: EventItem) => void;
+  loading: boolean;
+}) {
+  const topEvents = useMemo(() => events.slice(0, 12), [events]);
+  return (
+    <section className="yumi-center">
+      <SimilarityOrb score={score} friends={friends} />
+      <div className="yumi-orbit-cards">
+        {topEvents.map((e, i) => {
+          const angle = (i / Math.max(1, topEvents.length)) * 360;
+          const transform = `rotate(${angle}deg) translateY(-15rem) rotate(${-angle}deg)`;
+          const active = activeId === e.id;
+          return (
+            <button
+              key={e.id}
+              type="button"
+              className={`yumi-card ${active ? "is-active" : ""}`}
+              style={{ transform }}
+              onClick={() => onEventClick(e)}
+              title={e.title}
+            >
+              <div className="yumi-card__thumb" aria-hidden="true">
+                <span>{e.title.slice(0, 1)}</span>
+              </div>
+              <span className="yumi-card__title">{e.title}</span>
+            </button>
+          );
+        })}
+      </div>
+      {loading && <div className="yumi-loading">Finalizing recommendations</div>}
+    </section>
+  );
+}
+
+function ChatBar({
+  value,
+  onChange,
+  onSubmit,
+  loading,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  loading: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <form className="yumi-chatbar" onSubmit={onSubmit}>
+      <button type="button" className="yumi-chatbar__icon" aria-label="Attachments">📎</button>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || "AI is thinking..."}
+      />
+      <button className="yumi-send" disabled={loading} aria-label="Send">
+        ➤
+      </button>
+    </form>
   );
 }
 

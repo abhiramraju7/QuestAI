@@ -903,3 +903,252 @@ select:focus {
   }
 }
 
+/* ===== Light Yumi-style Overrides & Components ===== */
+:root {
+  color-scheme: light;
+  background: #f7f7fb;
+  color: #0f172a;
+}
+
+body {
+  background: #f7f7fb;
+}
+
+/* Light surface background */
+.yumi-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(1000px 600px at 50% -10%, rgba(139, 92, 246, 0.12), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(99, 102, 241, 0.12), transparent 55%),
+    radial-gradient(900px 600px at 0% 100%, rgba(56, 189, 248, 0.12), transparent 55%),
+    #fafafe;
+}
+
+/* Sidebar nav */
+.yumi-sidebar-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  padding: 1rem 0.75rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(99, 102, 241, 0.1);
+  z-index: 2;
+}
+.yumi-brand {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #111827;
+  padding: 0.5rem 0.75rem;
+}
+.yumi-nav-item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  margin: 0.1rem 0.35rem;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #334155;
+}
+.yumi-nav-item.is-active {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.12));
+  color: #4f46e5;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.12);
+}
+.yumi-nav-icon {
+  width: 20px;
+  text-align: center;
+}
+.yumi-nav-footer {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.25rem;
+}
+.yumi-logout {
+  all: unset;
+  color: #ef4444;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+/* Location chip */
+.yumi-location {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+.yumi-location__input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-weight: 600;
+  color: #1f2937;
+}
+.yumi-caret {
+  color: #6b7280;
+}
+
+/* Center canvas */
+.yumi-center {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  padding-left: 250px;
+}
+
+/* Orb light overrides */
+.orb__glow {
+  background: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.18), rgba(56, 189, 248, 0.12) 40%, transparent 60%);
+}
+.orb__ring {
+  background:
+    conic-gradient(from -90deg, #8b5cf6 var(--meter-deg, 220deg), rgba(139, 92, 246, 0.15) var(--meter-deg, 220deg)),
+    radial-gradient(circle at center, rgba(255,255,255,0) 62%, rgba(255,255,255,0.8) 62%);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), inset 0 0 60px rgba(99, 102, 241, 0.15);
+}
+.orb__score {
+  background: linear-gradient(180deg, #4f46e5, #8b5cf6, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 8px 30px rgba(139, 92, 246, 0.25);
+}
+.orb__label {
+  color: #6366f1;
+}
+.friend-node {
+  background: rgba(168, 85, 247, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #4f46e5;
+  box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.08), 0 12px 30px rgba(139, 92, 246, 0.18);
+}
+
+.yumi-orbit-cards {
+  position: absolute;
+  width: 38rem;
+  height: 38rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.yumi-card {
+  pointer-events: auto;
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  background: white;
+  border: 1px solid rgba(15,23,42,0.06);
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.yumi-card.is-active {
+  box-shadow: 0 14px 40px rgba(79, 70, 229, 0.25);
+  border-color: rgba(79, 70, 229, 0.35);
+}
+.yumi-card:hover {
+  transform: scale(1.03);
+}
+.yumi-card__thumb {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e9d5ff, #dbeafe);
+  color: #4f46e5;
+  font-weight: 800;
+  font-size: 1.75rem;
+}
+.yumi-card__title {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  text-align: center;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.yumi-loading {
+  position: absolute;
+  top: calc(50% + 11rem);
+  font-weight: 600;
+  color: #6b7280;
+}
+
+/* Chat bar */
+.yumi-chatbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1rem;
+  width: min(920px, calc(100vw - 3rem - 250px));
+  margin-left: 125px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  z-index: 2;
+}
+.yumi-chatbar input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.5rem;
+}
+.yumi-send {
+  all: unset;
+  cursor: pointer;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+.yumi-chatbar__icon {
+  all: unset;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+@media (max-width: 1100px) {
+  .yumi-center {
+    padding-left: 0;
+  }
+  .yumi-chatbar {
+    width: calc(100vw - 2rem);
+    margin-left: 0;
+  }
+  .yumi-sidebar-nav {
+    width: 200px;
+  }
+}
+
