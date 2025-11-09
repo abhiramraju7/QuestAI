@@ -247,3 +247,49 @@ def get_tool_candidates(provider: str, query: Dict[str, Any]) -> List[Dict[str, 
 
     scored.sort(key=lambda item: item[0], reverse=True)
     return [dict(event) for _, event in scored[:20]]
+
+
+def search_mock_events(filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Merge and lightly filter results from both mock providers.
+    Expected filters keys:
+      - q, location, vibe, provider, likes, tags, limit, time_window, distance_cap
+    """
+    provider = (filters.get("provider") or "").strip().lower()
+    providers: List[str] = (
+        [provider] if provider in _MOCK_EVENTS.keys() else list(_MOCK_EVENTS.keys())
+    )
+
+    merged: List[Dict[str, Any]] = []
+    for p in providers:
+        merged.extend(get_tool_candidates(p, filters))
+
+    # Text and facet filters
+    q = (filters.get("q") or "").strip().lower()
+    vibe = (filters.get("vibe") or "").strip().lower()
+
+    def _match(event: Dict[str, Any]) -> bool:
+        if vibe and (event.get("vibe", "") or "").lower() != vibe:
+            return False
+        if q:
+            hay = " ".join(
+                [
+                    str(event.get("title", "")),
+                    str(event.get("summary", "")),
+                    str(event.get("address", "")),
+                ]
+            ).lower()
+            if q not in hay:
+                return False
+        return True
+
+    filtered = [e for e in merged if _match(e)]
+
+    # Re-score across providers so top items rise to the top.
+    rescored: List[Tuple[float, Dict[str, Any]]] = [
+        (_event_score(e, filters), e) for e in filtered
+    ]
+    rescored.sort(key=lambda item: item[0], reverse=True)
+
+    limit = int(filters.get("limit") or 25)
+    return [dict(e) for _, e in rescored[:limit]]
