@@ -1,11 +1,15 @@
 import React, { FormEvent } from "react";
-import { ActivityResult } from "../lib/api";
-import { OrbitCarousel } from "./OrbitCarousel";
 
 type FormState = {
   query_text: string;
   location?: string;
   budget_cap?: string;
+};
+
+type FriendProfile = {
+  id: string;
+  name: string;
+  likes: string;
 };
 
 type HeroProps = {
@@ -14,13 +18,12 @@ type HeroProps = {
   agentSummary: string | null;
   agentKeywords: string[];
   suggestions: string[];
-  orbitActivities: ActivityResult[];
-  selectedActivityId: string | null;
+  friends: FriendProfile[];
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFormChange: (field: keyof FormState, value: string) => void;
   onSuggestion: (text: string) => void;
   onReset: () => void;
-  onSelectActivity: (activity: ActivityResult) => void;
+  onFriendChange: (id: string, likes: string) => void;
 };
 
 export function Hero({
@@ -29,13 +32,12 @@ export function Hero({
   agentSummary,
   agentKeywords,
   suggestions,
-  orbitActivities,
-  selectedActivityId,
+  friends,
   onSubmit,
   onFormChange,
   onSuggestion,
   onReset,
-  onSelectActivity,
+  onFriendChange,
 }: HeroProps) {
   return (
     <section className="hero-grid">
@@ -120,13 +122,22 @@ export function Hero({
         </form>
       </div>
 
-      <div className="hero-grid__orbit">
-        <OrbitCarousel
-          activities={orbitActivities}
-          selectedActivityId={selectedActivityId}
-          loading={loading}
-          onSelect={onSelectActivity}
-        />
+      <div className="hero-grid__friends">
+        <h3>Who’s coming?</h3>
+        <p>Fine-tune the blend by tweaking each friend’s vibe list. Separate likes with commas.</p>
+        <ul className="friend-editor">
+          {friends.map((friend) => (
+            <li key={friend.id} className="friend-editor__item">
+              <span className="friend-editor__tag">{friend.name}</span>
+              <textarea
+                value={friend.likes}
+                onChange={(event) => onFriendChange(friend.id, event.target.value)}
+                rows={2}
+                spellCheck={false}
+              />
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

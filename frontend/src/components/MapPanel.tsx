@@ -2,7 +2,7 @@ import React from "react";
 import { ActivityResult } from "../lib/api";
 
 type MapPanelProps = {
-  activity: ActivityResult | null;
+  activity: (ActivityResult & { match?: unknown }) | null;
 };
 
 export function MapPanel({ activity }: MapPanelProps) {
@@ -10,7 +10,7 @@ export function MapPanel({ activity }: MapPanelProps) {
     return (
       <section className="map-panel map-panel--empty">
         <h3>Select a spot</h3>
-        <p>We’ll plot it on the map once you choose a capsule.</p>
+        <p>We’ll plot it on the map once you choose an activity.</p>
       </section>
     );
   }

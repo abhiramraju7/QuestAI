@@ -1,13 +1,27 @@
 import React from "react";
 import { ActivityResult } from "../lib/api";
 
+type MatchBreakdown = {
+  overall: number;
+  prompt: number;
+  friends: Array<{
+    id: string;
+    name: string;
+    score: number;
+  }>;
+};
+
+type ActivityWithMatch = ActivityResult & {
+  match: MatchBreakdown;
+};
+
 type ActivityPanelProps = {
-  activities: ActivityResult[];
+  activities: ActivityWithMatch[];
   loading: boolean;
   hasSearched: boolean;
   error: string | null;
   selectedActivityId: string | null;
-  onSelect: (activity: ActivityResult) => void;
+  onSelect: (activity: ActivityWithMatch) => void;
 };
 
 export function ActivityPanel({
@@ -38,7 +52,7 @@ export function ActivityPanel({
             {loading
               ? "Fetching your recommendations…"
               : hasSearched
-              ? "Tap a capsule or list item to preview it on the map."
+              ? "Pick a card to inspect alignment across the crew."
               : "Use the hero form to get agent-curated venues."}
           </p>
         </div>
@@ -76,7 +90,7 @@ function ActivityCard({
   isActive,
   onSelect,
 }: {
-  activity: ActivityResult;
+  activity: ActivityWithMatch;
   isActive: boolean;
   onSelect: () => void;
 }) {
@@ -87,6 +101,9 @@ function ActivityCard({
   if (activity.price) {
     metaParts.push(activity.price);
   }
+
+  const overallPercent = Math.round(activity.match.overall * 100);
+  const topFriend = [...activity.match.friends].sort((a, b) => b.score - a.score)[0];
 
   return (
     <button type="button" className={`activity-card ${isActive ? "activity-card--active" : ""}`} onClick={onSelect}>
@@ -108,6 +125,16 @@ function ActivityCard({
 
         {metaParts.length > 0 && <p className="activity-card__meta">{metaParts.join(" · ")}</p>}
         {activity.summary && <p className="activity-card__summary">{activity.summary}</p>}
+
+        <div className="activity-card__match">
+          <div className="activity-card__match-bar">
+            <span style={{ width: `${overallPercent}%` }} />
+          </div>
+          <div className="activity-card__match-label">
+            <strong>{overallPercent}% match</strong>
+            {topFriend ? <span>Best for {topFriend.name}</span> : null}
+          </div>
+        </div>
 
         <div className="activity-card__links">
           {activity.booking_url && (
