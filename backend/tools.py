@@ -5,6 +5,7 @@ import os
 import re
 import logging
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Tuple
 from functools import lru_cache
 from urllib.parse import quote_plus
@@ -449,8 +450,19 @@ def tool_find_activities(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     }
     Return raw candidates; Writer will turn into PlanCard.
     """
-    google_results = _fetch_google_places(query)
-    event_results = _fetch_eventbrite_events(query)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        google_future = executor.submit(_fetch_google_places, query)
+        event_future = executor.submit(_fetch_eventbrite_events, query)
+        try:
+            google_results = google_future.result()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error("Google Places fetch failed: %s", exc)
+            google_results = []
+        try:
+            event_results = event_future.result()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error("Eventbrite fetch failed: %s", exc)
+            event_results = []
 
     combined_map: Dict[str, Dict[str, Any]] = {}
     for item in google_results + event_results:
