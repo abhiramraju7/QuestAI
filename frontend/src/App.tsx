@@ -528,6 +528,28 @@ function HorizontalPicker({
   const [paused, setPaused] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const getEventImage = (e: EventItem): string => {
+    const base = "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=320&q=60";
+    const vibeText = ((e as any).vibe || (e as any).vibes?.[0] || "");
+    const q = encodeURIComponent(`${e.title || ""} ${vibeText} atlanta activity`);
+    return `https://source.unsplash.com/seed/${encodeURIComponent(e.id || e.title)}/200x200/?${q}` || base;
+  };
+
+  const placeholders = useMemo(
+    () =>
+      Array.from({ length: 12 }).map((_, i) => ({
+        id: `ph-${i}`,
+        title: ["Street Fair", "Live Jazz", "Beltline Ride", "Picnic in the Park", "Museum Night", "Food Hall", "Arcade Run", "Board Games", "Comedy Show", "Sunset Point"][i % 10],
+        source: "mock",
+      })) as any[],
+    []
+  );
+
+  const items: Array<EventItem & { image?: string }> = useMemo(() => {
+    const list = (events.length ? events : (placeholders as any)) as EventItem[];
+    return list.map((e) => ({ ...(e as any), image: getEventImage(e) }));
+  }, [events, placeholders]);
+
   const pickBest = useCallback(() => {
     // Very simple interest overlap score using title + vibes/tags strings
     const interestTerms = new Set<string>(
@@ -536,7 +558,7 @@ function HorizontalPicker({
       ].map((t) => t.toLowerCase())
     );
     let best: { id: string; score: number } | null = null;
-    events.forEach((ev) => {
+    items.forEach((ev) => {
       const hay = [ev.title, ev.summary || "", ev.venue || "", (ev as any).vibes?.join(" ") || "", (ev as any).tags?.join(" ") || ""]
         .join(" ")
         .toLowerCase();
@@ -548,10 +570,10 @@ function HorizontalPicker({
         best = { id: ev.id, score: s };
       }
     });
-    const fallbackId = (events.map((e) => e.id)[0] as string | undefined) ?? null;
+    const fallbackId = (items.map((e) => e.id)[0] as string | undefined) ?? null;
     // @ts-ignore - shim environment may lose EventItem types; in real build React types resolve
     return best ? best.id : fallbackId;
-  }, [events]);
+  }, [items]);
 
   const centerOn = useCallback((id: string) => {
     if (!containerRef.current || !trackRef.current) return;
@@ -605,7 +627,7 @@ function HorizontalPicker({
           className={`belt__track ${paused ? "is-paused" : ""}`}
           style={{ ["--belt-speed" as any]: "40s" }}
         >
-          {events.concat(events).map((e: EventItem, idx: number) => (
+          {items.concat(items).map((e: EventItem & { image?: string }, idx: number) => (
             <button
               key={`${e.id}-${idx}`}
               data-id={e.id}
@@ -614,9 +636,7 @@ function HorizontalPicker({
               onClick={() => onEventClick(e)}
               title={e.title}
             >
-              <div className="belt-card__thumb">
-                <span>{e.title.slice(0, 1)}</span>
-              </div>
+              <img className="belt-card__img" src={e.image || getEventImage(e)} alt={e.title} />
             </button>
           ))}
         </div>

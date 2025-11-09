@@ -1017,7 +1017,9 @@ body {
 /* Headline like the reference */
 .headline {
   position: absolute;
-  top: calc(50% - 17rem);
+  left: 50%;
+  transform: translateX(-50%);
+  top: 10vh;
   margin: 0;
   font-weight: 900;
   letter-spacing: -0.02em;
@@ -1164,9 +1166,12 @@ body {
 /* Horizontal picker */
 .friends-row {
   position: absolute;
-  top: calc(50% - 13rem);
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(10vh + 6rem);
   display: flex;
   gap: 1.25rem;
+  z-index: 2;
 }
 .friend-avatar {
   display: grid;
@@ -1191,14 +1196,16 @@ body {
 }
 .belt {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  top: calc(10vh + 15rem);
   width: min(900px, 70vw);
   height: 140px;
   border-radius: 20px;
   display: grid;
   place-items: center;
   overflow: hidden;
+  z-index: 1;
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
 }
 .belt__track {
@@ -1227,16 +1234,12 @@ body {
   place-items: center;
   transition: transform 140ms ease, box-shadow 140ms ease;
 }
-.belt-card__thumb {
+.belt-card__img {
   width: 100%;
   height: 100%;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #e9d5ff, #dbeafe);
-  color: #4f46e5;
-  font-weight: 800;
-  font-size: 1.8rem;
+  object-fit: cover;
+  display: block;
 }
 .belt-card:hover {
   transform: translateY(-4px);
@@ -1248,7 +1251,7 @@ body {
 }
 .picker-actions {
   position: absolute;
-  top: calc(50% + 7rem);
+  top: calc(10vh + 24rem);
 }
 
 /* Subtle mini orb at center */
