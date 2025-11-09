@@ -1,13 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { EventItem, fetchEvents, fetchPlan } from "./lib/api";
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "";
-
-if (MAPBOX_TOKEN) {
-  mapboxgl.accessToken = MAPBOX_TOKEN;
-}
 
 type PlanCard = {
   title: string;
@@ -123,13 +115,6 @@ export default function App() {
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
 
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
-  const popupRef = useRef<mapboxgl.Popup | null>(null);
-
-  const hasMapboxToken = Boolean(MAPBOX_TOKEN);
-
   const vibePalette = useMemo(() => {
     return {
       chill: "#b5c0d0",
@@ -182,116 +167,6 @@ export default function App() {
   useEffect(() => {
     void performEventSearch();
   }, [performEventSearch]);
-
-  useEffect(() => {
-    if (!hasMapboxToken || !mapContainerRef.current || mapRef.current) {
-      return;
-    }
-
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [-71.0589, 42.3601],
-      zoom: 11,
-    });
-
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
-    const handleClick = () => setActiveEventId(null);
-    map.on("click", handleClick);
-
-    mapRef.current = map;
-
-    return () => {
-      map.off("click", handleClick);
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      popupRef.current?.remove();
-      map.remove();
-      mapRef.current = null;
-    };
-  }, [hasMapboxToken]);
-
-  useEffect(() => {
-    if (!mapRef.current || !hasMapboxToken) {
-      return;
-    }
-
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    if (events.length === 0) {
-      popupRef.current?.remove();
-      popupRef.current = null;
-      return;
-    }
-
-    const bounds = new mapboxgl.LngLatBounds();
-
-    events.forEach((event) => {
-      if (typeof event.lng !== "number" || typeof event.lat !== "number") {
-        return;
-      }
-
-      const marker = new mapboxgl.Marker({
-        color: event.source === "eventbrite" ? "#f97316" : "#38bdf8",
-      })
-        .setLngLat([event.lng, event.lat])
-        .addTo(mapRef.current!);
-
-      marker.getElement().addEventListener("click", () => {
-        setActiveEventId(event.id);
-      });
-
-      markersRef.current.push(marker);
-      bounds.extend([event.lng, event.lat]);
-    });
-
-    if (!bounds.isEmpty()) {
-      mapRef.current.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 800 });
-    }
-  }, [events, hasMapboxToken]);
-
-  useEffect(() => {
-    if (!mapRef.current || !hasMapboxToken) {
-      return;
-    }
-
-    popupRef.current?.remove();
-    popupRef.current = null;
-
-    if (!activeEventId) {
-      return;
-    }
-
-    const event = events.find((item) => item.id === activeEventId);
-    if (!event || typeof event.lng !== "number" || typeof event.lat !== "number") {
-      return;
-    }
-
-    const html = `
-      <div class="map-popup">
-        <strong>${event.title}</strong>
-        ${event.venue ? `<p>${event.venue}</p>` : ""}
-        ${
-          event.booking_url
-            ? `<a href="${event.booking_url}" target="_blank" rel="noreferrer">Event Link</a>`
-            : ""
-        }
-        ${
-          event.maps_url
-            ? `<a href="${event.maps_url}" target="_blank" rel="noreferrer">Directions</a>`
-            : ""
-        }
-      </div>
-    `;
-
-    popupRef.current = new mapboxgl.Popup({ closeOnClick: true, maxWidth: "260px" })
-      .setLngLat([event.lng, event.lat])
-      .setHTML(html)
-      .addTo(mapRef.current);
-
-    mapRef.current.easeTo({ center: [event.lng, event.lat], zoom: 13, duration: 600 });
-  }, [activeEventId, events, hasMapboxToken]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -365,28 +240,16 @@ export default function App() {
 
   function handleEventCardClick(event: EventItem) {
     setActiveEventId(event.id);
-    if (mapRef.current && typeof event.lng === "number" && typeof event.lat === "number") {
-      mapRef.current.easeTo({ center: [event.lng, event.lat], zoom: 13, duration: 600 });
-    }
   }
+
+  const topScore =
+    result?.candidates?.length ? Math.max(...result.candidates.map((c) => c.group_score)) : null;
+  const displayScore = topScore ? Math.round(topScore * 100) : 62;
+  const friendObjects = FRIENDS.filter((f) => selectedFriends.includes(f.id));
 
   return (
     <div className="map-layout">
-      <div className="map-root">
-        {hasMapboxToken ? (
-          <div ref={mapContainerRef} className="mapbox-sheet" />
-        ) : (
-          <div className="map-fallback">
-            <div className="map-fallback__card">
-              <h2>Add your Mapbox token</h2>
-              <p>
-                Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> to enable the live map. Events still render
-                in the panels.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+      <AnimatedBackdrop />
 
       <header className="top-bar">
         <span className="logo">Challo</span>
@@ -396,6 +259,16 @@ export default function App() {
           <span>Google Places</span>
         </div>
       </header>
+
+      <section className="center-stage">
+        <SimilarityOrb score={displayScore} friends={friendObjects.map((f) => f.name)} />
+        <OrbitingTags
+          tags={Array.from(new Set([...splitList(customTags), ...(vibeHint ? [vibeHint] : [])]))
+            .slice(0, 8)
+            .map((t) => t.trim())
+            .filter(Boolean)}
+        />
+      </section>
 
       <section className="control-stack">
         <form className="panel query-card" onSubmit={onSubmit}>
@@ -710,6 +583,82 @@ export default function App() {
           ))}
         </div>
       </aside>
+    </div>
+  );
+}
+
+function SimilarityOrb({ score, friends }: { score: number; friends: string[] }) {
+  const degree = Math.max(0, Math.min(100, score)) * 3.6;
+  const style = {
+    ["--meter-deg" as any]: `${degree}deg`,
+  } as CSSProperties;
+
+  const friendAngles = friends.length
+    ? friends.map((_, idx) => (idx / friends.length) * 360)
+    : [0, 120, 240];
+
+  return (
+    <div className="orb" style={style}>
+      <div className="orb__glow" />
+      <div className="orb__ring" />
+      <div className="orb__content">
+        <div className="orb__score">{score}%</div>
+        <div className="orb__label">Group Match</div>
+      </div>
+      <div className="orb__friends">
+        {friends.map((name, i) => {
+          const angle = friendAngles[i] ?? 0;
+          const transform = `rotate(${angle}deg) translateY(-8.2rem) rotate(${-angle}deg)`;
+          const initials = name
+            .split(" ")
+            .map((s) => s[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
+          return (
+            <div key={name} className="friend-node" style={{ transform }}>
+              <span>{initials}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrbitingTags({ tags }: { tags: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div className="orbiters">
+      {tags.map((tag, idx) => {
+        const size = 160 + (idx % 4) * 26;
+        const dur = 14 + (idx % 5) * 2;
+        return (
+          <div
+            key={`${tag}-${idx}`}
+            className="orbiter"
+            style={
+              {
+                ["--orbit-size" as any]: `${size}px`,
+                ["--orbit-duration" as any]: `${dur}s`,
+              } as CSSProperties
+            }
+          >
+            <span>{tag}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AnimatedBackdrop() {
+  return (
+    <div className="backdrop">
+      <div className="blob blob--1" />
+      <div className="blob blob--2" />
+      <div className="blob blob--3" />
+      <div className="grid-lights" />
     </div>
   );
 }
