@@ -2,6 +2,12 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class ActivitySearchRequest(BaseModel):
+    query_text: str
+    location: Optional[str] = None
+    budget_cap: Optional[float] = None
+
+
 class UserTaste(BaseModel):
     user_id: str
     likes: List[str] = []
