@@ -179,7 +179,7 @@ export default function App() {
       const likesArray = splitList(customLikes);
       const tagsArray = splitList(customTags);
 
-      const friendOverrides = selectedFriends.map((id) => {
+      const friendOverrides = selectedFriends.map((id: string) => {
         const inputs = friendInputs[id] || {
           likes: "",
           vibes: "",
@@ -189,7 +189,7 @@ export default function App() {
         };
         return {
           user_id: id,
-          display_name: FRIENDS.find((f) => f.id === id)?.name,
+          display_name: FRIENDS.find((f: typeof FRIENDS[number]) => f.id === id)?.name,
           likes: splitList(inputs.likes),
           vibes: splitList(inputs.vibes),
           tags: splitList(inputs.tags),
@@ -228,8 +228,8 @@ export default function App() {
   }
 
   function toggleFriend(id: string) {
-    setSelectedFriends((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    setSelectedFriends((prev: string[]) =>
+      prev.includes(id) ? prev.filter((f: string) => f !== id) : [...prev, id]
     );
   }
 
@@ -243,7 +243,7 @@ export default function App() {
   }
 
   const topScore =
-    result?.candidates?.length ? Math.max(...result.candidates.map((c) => c.group_score)) : null;
+    result?.candidates?.length ? Math.max(...result.candidates.map((c: PlanCard) => c.group_score)) : null;
   const displayScore = topScore ? Math.round(topScore * 100) : 62;
   const friendObjects = FRIENDS.filter((f) => selectedFriends.includes(f.id));
 
@@ -400,8 +400,8 @@ function LocationChip({
       <input
         className="yumi-location__input"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
           if (e.key === "Enter") {
             e.preventDefault();
             onSubmit();
@@ -433,7 +433,7 @@ function CenterRecommendations({
     <section className="yumi-center">
       <SimilarityOrb score={score} friends={friends} />
       <div className="yumi-orbit-cards">
-        {topEvents.map((e, i) => {
+        {topEvents.map((e: EventItem, i: number) => {
           const angle = (i / Math.max(1, topEvents.length)) * 360;
           const transform = `rotate(${angle}deg) translateY(-15rem) rotate(${-angle}deg)`;
           const active = activeId === e.id;
@@ -477,7 +477,7 @@ function ChatBar({
       <button type="button" className="yumi-chatbar__icon" aria-label="Attachments">📎</button>
       <input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         placeholder={placeholder || "AI is thinking..."}
       />
       <button className="yumi-send" disabled={loading} aria-label="Send">
@@ -594,14 +594,18 @@ function YumiLayout(props: YumiLayoutProps) {
         </header>
         <HobbyPlate
           selected={plateSelected}
-          onToggle={(tag) =>
-            setPlateSelected((prev) =>
-              prev.includes(tag) ? prev.filter((t) => t !== tag) : prev.length < 6 ? [...prev, tag] : prev
+          onToggle={(tag: string) =>
+            setPlateSelected((prev: string[]) =>
+              prev.includes(tag)
+                ? prev.filter((t: string) => t !== tag)
+                : prev.length < 6
+                ? [...prev, tag]
+                : prev
             )
           }
         />
         <div className="chip-cloud">
-          {suggestionSet.map((tag) => {
+          {suggestionSet.map((tag: string) => {
             const active = plateSelected.includes(tag);
             return (
               <button
@@ -609,9 +613,9 @@ function YumiLayout(props: YumiLayoutProps) {
                 type="button"
                 className={`chip ${active ? "chip--active" : ""}`}
                 onClick={() =>
-                  setPlateSelected((prev) =>
+                  setPlateSelected((prev: string[]) =>
                     prev.includes(tag)
-                      ? prev.filter((t) => t !== tag)
+                      ? prev.filter((t: string) => t !== tag)
                       : prev.length < 6
                       ? [...prev, tag]
                       : prev
@@ -649,23 +653,23 @@ function YumiLayout(props: YumiLayoutProps) {
         <form className="yumi-search panel" onSubmit={onSubmit}>
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
             placeholder="What vibe are you going for? e.g., outdoorsy music near Cambridge under $20"
           />
           <div className="search-row">
             <input
               value={locationHint}
-              onChange={(e) => setLocationHint(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocationHint(e.target.value)}
               placeholder="Location"
             />
             <input
               value={timeWindow}
-              onChange={(e) => setTimeWindow(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimeWindow(e.target.value)}
               placeholder="Time window"
             />
             <input
               value={vibeHint}
-              onChange={(e) => setVibeHint(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVibeHint(e.target.value)}
               placeholder="Vibe (optional)"
             />
             <button className="primary" type="submit" disabled={loading}>
@@ -681,9 +685,9 @@ function YumiLayout(props: YumiLayoutProps) {
           </header>
 
           <form className="yumi-event-filters" onSubmit={handleEventSearchSubmit}>
-            <input onChange={(e) => setEventQuery(e.target.value)} placeholder="Keyword" />
-            <input onChange={(e) => setEventLocation(e.target.value)} placeholder="Location" />
-            <input onChange={(e) => setEventVibeFilter(e.target.value)} placeholder="Vibe" />
+            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventQuery(e.target.value)} placeholder="Keyword" />
+            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventLocation(e.target.value)} placeholder="Location" />
+            <input onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventVibeFilter(e.target.value)} placeholder="Vibe" />
             <button type="submit" disabled={eventsLoading}>
               {eventsLoading ? "..." : "Refresh"}
             </button>
@@ -787,7 +791,7 @@ function ActivityGrid({
 }) {
   return (
     <div className="activity-grid">
-      {events.map((e) => (
+      {events.map((e: EventItem) => (
         <button key={e.id} type="button" className="activity-card" onClick={() => onClick(e)}>
           <div className="activity-card__head">
             <span className="activity-title">{e.title}</span>
