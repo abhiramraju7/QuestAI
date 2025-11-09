@@ -1,4 +1,4 @@
-import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { EventItem, fetchEvents, fetchPlan } from "./lib/api";
 
 type PlanCard = {
