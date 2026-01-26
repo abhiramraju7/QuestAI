@@ -2,7 +2,7 @@
 
 “You bring the mood, and your friends bring the vibe. AI orchestrates the plan.”
 
-Challo is a full-stack reimagining of the Yumi social-agentic platform, pivoting from food discovery to activity discovery. The system coordinates group moods, taste graphs, and live event data to suggest the perfect shared experience. The repo now targets a Netlify-hosted web app paired with a FastAPI backend you can deploy on your preferred free-tier provider (Railway, Fly.io, Cloud Run, etc.).
+Challo is a full-stack system that coordinates group moods, taste graphs, and live event data to suggest the perfect shared experience. The repo now targets a Netlify-hosted web app paired with a FastAPI backend you can deploy on your preferred free-tier provider (Railway, Fly.io, Cloud Run, etc.).
 
 ---
 
@@ -155,4 +155,4 @@ If you prefer Google’s Agent Developer Kit (ADK) or other frameworks (e.g., La
 - **Demo Flow** — natural language mood input → structured intent → merged taste graph → ranked experiences with vibe scores.
 - **Next** — Voice concierge, trust graphs, cross-city itineraries, and automated booking concierge.
 
-Bring the vibes, let Vivi orchestrate the rest. </>
+Bring the vibes, let Challo orchestrate the rest. </>
